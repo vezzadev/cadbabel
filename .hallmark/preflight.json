@@ -1,0 +1,19 @@
+{
+  "date": "2026-09-17",
+  "repo": "vezzadev/cadbabel",
+  "signals": {
+    "existing_design_system": false,
+    "existing_tokens": false,
+    "existing_components": false,
+    "brand_assets": false,
+    "prior_hallmark_run": false,
+    "framework": "none — static assets served by a Cloudflare Worker"
+  },
+  "conclusion": "Greenfield. Nothing to preserve, so the full Hallmark stack applies and every token is new.",
+  "constraints_from_brief": [
+    "Honest copy only: no invented metrics, testimonials, or customer logos. Every number on the page traces to the design doc or to a cited competitor page.",
+    "The disclosure must appear before the card field at the same type size as the price.",
+    "Two directions offered as equal doors with nothing pre-selected; views and reservations counted per direction.",
+    "Tone reference: mcmaster.com — technical, austere, spec-forward."
+  ]
+}

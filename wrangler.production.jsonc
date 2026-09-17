@@ -1,0 +1,38 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cadbabel",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "account_id": "f2161e1aa7fc40353948a79e3eec5837",
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cadbabel-prod",
+      "database_id": "e2bb615d-eb91-431e-b906-f6c204719c95",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "STRIPE_PUBLISHABLE_KEY": ""
+  },
+  "routes": [
+    {
+      "pattern": "cadbabel.com",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.cadbabel.com",
+      "custom_domain": true
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cadbabel-ppe",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "account_id": "4e8ec9b758de0cf1e392f7e2d916e96f",
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cadbabel-ppe",
+      "database_id": "ba42e75c-fed4-4a8b-af30-26c31d70e3f3",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "STRIPE_PUBLISHABLE_KEY": "pk_test_51RpKv72f4eo2qBMGZ7P7gDlvO0uJSDKYv7aoe7dr6Y761ehxC7hwOYvzT73fxSTaAd1tlgi4iwDf1mxTOvhGq2fL00brabpsC2"
+  }
+}

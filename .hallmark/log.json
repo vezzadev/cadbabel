@@ -1,0 +1,27 @@
+{
+  "project": "cadbabel",
+  "runs": [
+    {
+      "date": "2026-09-17",
+      "surface": "public/index.html",
+      "brief": "Fake-door landing page for a SolidWorks <-> Fusion feature-history translation bureau. Two equal direction doors, counted separately; disclosure plate before the card field at price type size; Stripe setup intent reservation.",
+      "genre": "editorial",
+      "macrostructure": "15-split-studio",
+      "theme": "grid",
+      "enrichment": "none",
+      "nav": "n9",
+      "footer": "ft4",
+      "archetypes": ["n9", "h2", "f3", "f4", "c2", "s5", "ft4"],
+      "axes": {
+        "value": "light",
+        "type": "grotesk-heavy-lowercase",
+        "color": "chromatic-yellow"
+      },
+      "typeface": "Archivo 400-800 variable, self-hosted latin subset",
+      "signal_ink": "oklch(82% 0.17 95)",
+      "plate": "disclosure band, full-bleed signal yellow, ink type at --fs-price",
+      "motion": ["row hover background", "border-arrow 8px translate"],
+      "notes": "First Hallmark run for this project, so no rotation constraint applied. Grid chosen over a card-based theme because the exposed 12-column hairline rails read as drawing paper for a CAD audience; yellow over ultramarine to carry the McMaster tone reference and avoid default-AI blue."
+    }
+  ]
+}

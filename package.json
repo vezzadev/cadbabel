@@ -14,7 +14,7 @@
     "db:migrate:local": "wrangler d1 migrations apply cadbabel-ppe --local --config wrangler.ppe.jsonc"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.8.0",

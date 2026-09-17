@@ -16,7 +16,7 @@ const plate = document.getElementById("disclosure");
 // observed it being read, so the field stays null and submission is blocked.
 let disclosureShownAt = null;
 
-const reservation = { id: null, clientSecret: null, publishableKey: null, setupIntentId: null };
+const reservation = { id: null, step: null, clientSecret: null, publishableKey: null };
 
 function say(node, state, message) {
   node.dataset.state = state;
@@ -115,11 +115,6 @@ function readForm() {
 }
 
 async function mountCard() {
-  if (!reservation.publishableKey) {
-    say(cardResult, "error", "Card capture is not wired up yet, so we saved your reservation without a card.");
-    return;
-  }
-
   if (!window.Stripe) {
     await new Promise((resolve, reject) => {
       const tag = document.createElement("script");
@@ -201,13 +196,19 @@ form.addEventListener("submit", async event => {
   try {
     const payload = await postJson("/api/reserve", body);
     reservation.id = payload.reservation_id;
+    reservation.step = payload.card_step;
     reservation.clientSecret = payload.client_secret;
     reservation.publishableKey = payload.publishable_key;
 
-    say(result, "ok", "Slot recorded. One step left: put a card on file. We charge it nothing.");
     for (const field of form.querySelectorAll("input, select")) field.disabled = true;
     submit.hidden = true;
 
+    if (payload.card_step !== "stripe") {
+      say(result, "ok", "Slot recorded. No card is needed: card capture is not wired up yet, so there is nothing more to do.");
+      return;
+    }
+
+    say(result, "ok", "Slot recorded. One step left: put a card on file. We charge it nothing.");
     await mountCard();
   } catch (failure) {
     busy(submit, false, "Reserve a slot");

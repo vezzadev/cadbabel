@@ -80,6 +80,22 @@ export async function handleReserve(request: Request, env: Env): Promise<Respons
     throw cause;
   }
 
+  // The door can be live before Stripe is. With no keys configured the
+  // reservation still counts; the page then tells the visitor, in those words,
+  // that card capture is not wired up yet. `card_step` carries that state so
+  // the client never has to infer it from a missing field.
+  if (env.STRIPE_SECRET_KEY.length === 0 || env.STRIPE_PUBLISHABLE_KEY.length === 0) {
+    return jsonResponse(
+      {
+        reservation_id: reservationId,
+        card_step: "unconfigured",
+        client_secret: null,
+        publishable_key: null,
+      },
+      201,
+    );
+  }
+
   let customerId: string;
   let clientSecret: string;
   let setupIntentId: string;
@@ -117,6 +133,7 @@ export async function handleReserve(request: Request, env: Env): Promise<Respons
   return jsonResponse(
     {
       reservation_id: reservationId,
+      card_step: "stripe",
       client_secret: clientSecret,
       publishable_key: env.STRIPE_PUBLISHABLE_KEY,
     },

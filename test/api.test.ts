@@ -292,6 +292,7 @@ describe("POST /api/reserve", () => {
     expect(response.status).toBe(201);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(body["client_secret"]).toBe("seti_happy_secret_live");
+    expect(body["card_step"]).toBe("stripe");
     expect(body["publishable_key"]).toBe(STRIPE_PUBLISHABLE_KEY);
     expect(String(body["reservation_id"])).toMatch(UUID);
 
@@ -309,6 +310,32 @@ describe("POST /api/reserve", () => {
       stripe_setup_intent_id: "seti_happy",
       card_on_file: 0,
       second_yes: "no-reply",
+    });
+  });
+
+  it("records the reservation without touching Stripe when no keys are configured", async () => {
+    // The door goes live before the keys do; a reservation must still count.
+    stubStripe();
+
+    const response = await call(
+      jsonRequest("/api/reserve", reservePayload({ email: "keyless@example.com" })),
+      apiEnv({ STRIPE_SECRET_KEY: "", STRIPE_PUBLISHABLE_KEY: "" }),
+    );
+    const body = await bodyOf(response);
+
+    expect(response.status).toBe(201);
+    expect(body["card_step"]).toBe("unconfigured");
+    expect(body["client_secret"]).toBeNull();
+    expect(body["publishable_key"]).toBeNull();
+
+    const row = await env.DB.prepare("SELECT * FROM reservations WHERE id = ?")
+      .bind(body["reservation_id"] as string)
+      .first<Record<string, unknown>>();
+    expect(row).toMatchObject({
+      email: "keyless@example.com",
+      stripe_customer_id: null,
+      stripe_setup_intent_id: null,
+      card_on_file: 0,
     });
   });
 

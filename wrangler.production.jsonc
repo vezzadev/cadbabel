@@ -22,8 +22,12 @@
       "migrations_dir": "migrations"
     }
   ],
+  // Stripe test-mode keys, deliberately. The pilot is not operating, so no
+  // real card is ever charged; test mode makes that visible — the Payment
+  // Element renders its own test-mode badge and only test card numbers are
+  // accepted. Swap both keys together when the bureau starts operating.
   "vars": {
-    "STRIPE_PUBLISHABLE_KEY": ""
+    "STRIPE_PUBLISHABLE_KEY": "pk_test_51RpKv72f4eo2qBMGZ7P7gDlvO0uJSDKYv7aoe7dr6Y761ehxC7hwOYvzT73fxSTaAd1tlgi4iwDf1mxTOvhGq2fL00brabpsC2"
   },
   "routes": [
     {

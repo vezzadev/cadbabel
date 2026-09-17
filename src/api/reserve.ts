@@ -84,7 +84,11 @@ export async function handleReserve(request: Request, env: Env): Promise<Respons
   // reservation still counts; the page then tells the visitor, in those words,
   // that card capture is not wired up yet. `card_step` carries that state so
   // the client never has to infer it from a missing field.
-  if (env.STRIPE_SECRET_KEY.length === 0 || env.STRIPE_PUBLISHABLE_KEY.length === 0) {
+  //
+  // Falsy, not `.length === 0`: an unset Worker secret is absent from `env`
+  // entirely, so a length check throws a TypeError and the visitor gets a 500
+  // on a row that was already written.
+  if (!env.STRIPE_SECRET_KEY || !env.STRIPE_PUBLISHABLE_KEY) {
     return jsonResponse(
       {
         reservation_id: reservationId,

@@ -313,13 +313,18 @@ describe("POST /api/reserve", () => {
     });
   });
 
-  it("records the reservation without touching Stripe when no keys are configured", async () => {
-    // The door goes live before the keys do; a reservation must still count.
+  it.each([
+    ["empty strings", { STRIPE_SECRET_KEY: "", STRIPE_PUBLISHABLE_KEY: "" }],
+    // An unset Worker secret is missing from `env`, not empty. Production hit
+    // exactly this and answered 500 on an already-written row.
+    ["absent bindings", { STRIPE_SECRET_KEY: undefined, STRIPE_PUBLISHABLE_KEY: undefined }],
+  ])("records the reservation without touching Stripe (%s)", async (label, keys) => {
     stubStripe();
+    const email = `keyless-${label.replace(/\W+/g, "-")}@example.com`;
 
     const response = await call(
-      jsonRequest("/api/reserve", reservePayload({ email: "keyless@example.com" })),
-      apiEnv({ STRIPE_SECRET_KEY: "", STRIPE_PUBLISHABLE_KEY: "" }),
+      jsonRequest("/api/reserve", reservePayload({ email })),
+      apiEnv(keys as unknown as Partial<Env>),
     );
     const body = await bodyOf(response);
 
@@ -332,7 +337,7 @@ describe("POST /api/reserve", () => {
       .bind(body["reservation_id"] as string)
       .first<Record<string, unknown>>();
     expect(row).toMatchObject({
-      email: "keyless@example.com",
+      email,
       stripe_customer_id: null,
       stripe_setup_intent_id: null,
       card_on_file: 0,

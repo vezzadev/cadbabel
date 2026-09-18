@@ -542,10 +542,10 @@ a:active {
   max-width: 46ch;
 }
 
-/* the rails cross the plate: ink at 22% reads on flooded signal the way
-   --rule reads on paper, so the grid is never interrupted */
+/* the rails cross the plate so the grid is never interrupted. grid.md:51
+   specifies paper at 12-18% alpha on a flooded plate, not ink. */
 .plate .rails > i {
-  border-right-color: color-mix(in oklab, var(--signal-ink) 22%, transparent);
+  border-right-color: color-mix(in oklab, var(--paper) 15%, transparent);
 }
 
 /* ─── cells: scope, out of scope ─── */

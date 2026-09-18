@@ -85,10 +85,13 @@ body {
    hairline lands inside glyph stems — ornament turning into a reading defect.
    Whatever holds type paints the ground under it, so the grid reads in the
    gutters, the empty tracks, the space between blocks and across the plate,
-   and never through a word. `--ground` is inherited, so every surface that
-   paints a background restates it and nested type follows the surface it is
-   actually on — the plate's type grounds in signal, a hovered door in
-   paper-2.
+   and never through a word.
+
+   `--ground` is inherited, so a surface whose own type paints restates it
+   next to its background and that type follows the surface: the plate's
+   disclosure grounds in signal, a hovered step's paragraph in paper-2. A
+   surface whose type does not paint — a door, a spec row, a choice row —
+   needs no restatement, because it grounds as one object below.
 
    Running prose grounds per block, so the rails still read between the
    paragraphs of a column. */
@@ -345,7 +348,6 @@ a:active {
 @media (hover: hover) and (pointer: fine) {
   .spec tbody tr:hover {
     background: var(--paper-2);
-    --ground: var(--paper-2);
   }
 }
 
@@ -464,18 +466,15 @@ a:active {
 @media (hover: hover) and (pointer: fine) {
   .door:hover {
     background: var(--paper-2);
-    --ground: var(--paper-2);
   }
 }
 
 .door:active {
   background: var(--paper-3);
-  --ground: var(--paper-3);
 }
 
 .door:disabled {
   background: var(--paper-2);
-  --ground: var(--paper-2);
   color: var(--ink-3);
   cursor: not-allowed;
 }
@@ -522,7 +521,6 @@ a:active {
 
 .door[data-chosen="yes"] {
   background: var(--paper-3);
-  --ground: var(--paper-3);
 }
 
 .door[data-chosen="yes"] .door-label::after {
@@ -810,14 +808,12 @@ select[aria-invalid="true"] {
   .radio:hover,
   .ack:hover {
     background: var(--paper-2);
-    --ground: var(--paper-2);
   }
 }
 
 .radio:active,
 .ack:active {
   background: var(--paper-3);
-  --ground: var(--paper-3);
 }
 
 .btn {

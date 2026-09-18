@@ -325,6 +325,42 @@ describe("disclosure_shown_at", () => {
   });
 });
 
+describe("needed_by", () => {
+  it("refuses a date it cannot store as YYYY-MM-DD and keeps the row out of the table", async () => {
+    const recent = new Date(Date.now() - 60 * 1000).toISOString();
+    const rejected = ["15/10/2026", "2026-10-15T00:00:00.000Z", "next tuesday", "2026-13-40", 20261015];
+
+    for (const value of rejected) {
+      const response = await SELF.fetch(
+        jsonRequest("/api/reserve", { ...reserveBody("needed@example.com", recent), needed_by: value }),
+      );
+
+      expect(await bodyOf(response), `needed_by: ${String(value)}`).toEqual({
+        error: "needed_by: expected null or a YYYY-MM-DD date",
+      });
+      expect(response.status, `needed_by: ${String(value)}`).toBe(400);
+    }
+
+    expect(await countRows("reservations")).toBe(0);
+  });
+
+  it("treats an empty string as no date rather than as a date it must store", async () => {
+    const { env: environment } = envWithLimiters(true, true);
+    const recent = new Date(Date.now() - 60 * 1000).toISOString();
+
+    const response = await call(
+      jsonRequest("/api/reserve", { ...reserveBody("blank@example.com", recent), needed_by: "   " }),
+      environment,
+    );
+    const row = await env.DB.prepare("SELECT needed_by FROM reservations WHERE email = ?")
+      .bind("blank@example.com")
+      .first<{ needed_by: string | null }>();
+
+    expect(response.status).toBe(201);
+    expect(row?.needed_by).toBeNull();
+  });
+});
+
 describe("GET /api/stats", () => {
   const token = env.STATS_TOKEN ?? "";
 

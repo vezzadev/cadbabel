@@ -8,15 +8,26 @@
 
 const API_BASE = "https://api.stripe.com/v1";
 
+/**
+ * Who is at fault for a failed Stripe call. Carried as an enum rather than a
+ * boolean because it crosses a module boundary and decides what the visitor is
+ * told: "configuration" is ours (bad or revoked key, malformed request) and
+ * must never be reported as a third-party outage; "upstream" is Stripe's
+ * (rate limit, 5xx, network, unparseable response) and legitimately is.
+ */
+export type StripeFault = "configuration" | "upstream";
+
 export class StripeError extends Error {
   readonly httpStatus: number;
   readonly code: string | null;
+  readonly fault: StripeFault;
 
-  constructor(httpStatus: number, code: string | null, message: string) {
+  constructor(httpStatus: number, code: string | null, fault: StripeFault, message: string) {
     super(message);
     this.name = "StripeError";
     this.httpStatus = httpStatus;
     this.code = code;
+    this.fault = fault;
   }
 }
 
@@ -48,6 +59,18 @@ export interface StripeSetupIntent {
   readonly customerId: string | null;
 }
 
+/**
+ * A 401/403, or any `invalid_request_error`, means the key we hold is wrong or
+ * the request we built is wrong. Both are our defects: retrying does not help
+ * and Stripe is not down. Everything else — 429, 5xx, anything unexpected — is
+ * treated as upstream.
+ */
+function classify(httpStatus: number, type: string | null): StripeFault {
+  if (httpStatus === 401 || httpStatus === 403) return "configuration";
+  if (type === "invalid_request_error") return "configuration";
+  return "upstream";
+}
+
 async function request(
   secretKey: string,
   method: "GET" | "POST",
@@ -62,20 +85,34 @@ async function request(
   if (form) headers["content-type"] = "application/x-www-form-urlencoded";
   if (idempotencyKey) headers["idempotency-key"] = idempotencyKey;
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers,
-    body: form ? form.toString() : undefined,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers,
+      body: form ? form.toString() : undefined,
+    });
+  } catch (cause) {
+    // We never reached Stripe: no request was made, so the caller may retry.
+    const detail = cause instanceof Error ? cause.message : typeof cause;
+    throw new StripeError(502, "network_error", "upstream", `stripe ${method} ${path}: ${detail}`);
+  }
   const payload: unknown = await response.json().catch(() => null);
 
   if (!response.ok) {
     // Never interpolate the secret key or the request body into the message:
     // this string ends up in Worker logs.
-    const error = (payload as { error?: { code?: unknown; message?: unknown } } | null)?.error;
+    const error = (payload as { error?: { code?: unknown; message?: unknown; type?: unknown } } | null)
+      ?.error;
     const code = typeof error?.code === "string" ? error.code : null;
+    const type = typeof error?.type === "string" ? error.type : null;
     const detail = typeof error?.message === "string" ? error.message : "no error message";
-    throw new StripeError(response.status, code, `stripe ${method} ${path}: ${response.status} ${detail}`);
+    throw new StripeError(
+      response.status,
+      code,
+      classify(response.status, type),
+      `stripe ${method} ${path}: ${response.status} ${detail}`,
+    );
   }
   return payload;
 }
@@ -83,20 +120,30 @@ async function request(
 function readString(payload: unknown, field: string, path: string): string {
   const value = (payload as Record<string, unknown> | null)?.[field];
   if (typeof value !== "string" || value.length === 0) {
-    throw new StripeError(502, "malformed_response", `stripe ${path}: missing ${field}`);
+    throw new StripeError(502, "malformed_response", "upstream", `stripe ${path}: missing ${field}`);
   }
   return value;
 }
 
 export async function createCustomer(
   secretKey: string,
-  params: { email: string; reservationId: string; direction: string; purpose: string },
+  params: {
+    email: string;
+    reservationId: string;
+    direction: string;
+    purpose: string;
+    environment: string;
+  },
 ): Promise<StripeCustomer> {
   const form = new URLSearchParams();
   form.set("email", params.email);
   form.set("metadata[reservation_id]", params.reservationId);
   form.set("metadata[direction]", params.direction);
   form.set("metadata[purpose]", params.purpose);
+  // Both environments share one Stripe test account, so PPE smoke traffic and
+  // real demand are only separable in the dashboard if every object says which
+  // one made it.
+  form.set("metadata[environment]", params.environment);
 
   const payload = await request(secretKey, "POST", "/customers", form, `${params.reservationId}:customer`);
   return { id: readString(payload, "id", "/customers") };
@@ -104,13 +151,14 @@ export async function createCustomer(
 
 export async function createSetupIntent(
   secretKey: string,
-  params: { customerId: string; reservationId: string },
+  params: { customerId: string; reservationId: string; environment: string },
 ): Promise<StripeSetupIntent> {
   const form = new URLSearchParams();
   form.set("customer", params.customerId);
   form.set("usage", "off_session");
   form.set("payment_method_types[0]", "card");
   form.set("metadata[reservation_id]", params.reservationId);
+  form.set("metadata[environment]", params.environment);
 
   const payload = await request(secretKey, "POST", "/setup_intents", form, `${params.reservationId}:setup_intent`);
   return asSetupIntent(payload, "/setup_intents");
@@ -124,7 +172,7 @@ export async function getSetupIntent(secretKey: string, setupIntentId: string): 
 function asSetupIntent(payload: unknown, path: string): StripeSetupIntent {
   const status = (payload as Record<string, unknown> | null)?.["status"];
   if (typeof status !== "string" || !SETUP_INTENT_STATUSES.includes(status as SetupIntentStatus)) {
-    throw new StripeError(502, "malformed_response", `stripe ${path}: unknown status`);
+    throw new StripeError(502, "malformed_response", "upstream", `stripe ${path}: unknown status`);
   }
   const customerId = (payload as Record<string, unknown>)["customer"];
   return {

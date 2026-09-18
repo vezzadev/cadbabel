@@ -27,6 +27,10 @@ export async function handleEvent(request: Request, env: Env): Promise<Response>
     direction = null;
   }
 
-  await env.DB.prepare("INSERT INTO events (kind, direction) VALUES (?, ?)").bind(kind, direction).run();
+  // created_at is written here, not left to the column default: every stored
+  // timestamp is ISO-8601 UTC with a T and a Z so the two tables compare.
+  await env.DB.prepare("INSERT INTO events (kind, direction, created_at) VALUES (?, ?, ?)")
+    .bind(kind, direction, new Date().toISOString())
+    .run();
   return emptyResponse(204);
 }

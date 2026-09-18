@@ -1,28 +1,44 @@
 import { createExecutionContext, env, fetchMock, waitOnExecutionContext } from "cloudflare:test";
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import schema from "../migrations/0001_init.sql?raw";
+import initSchema from "../migrations/0001_init.sql?raw";
+import isoTimestampSchema from "../migrations/0002_iso_timestamps.sql?raw";
 import { handleApi } from "../src/api/router";
+import { handleStripeWebhook } from "../src/api/webhook";
 
 const STATS_TOKEN = "stats-token-for-tests";
 const STRIPE_SECRET_KEY = "sk_test_cadbabel";
 const STRIPE_PUBLISHABLE_KEY = "pk_test_cadbabel";
-const DISCLOSURE_SHOWN_AT = "2026-09-01T12:00:00.000Z";
+const STRIPE_WEBHOOK_SECRET = "whsec_test_cadbabel";
+// `requiredTimestamp` only accepts an instant inside a window around now, so
+// the disclosure fixture is generated rather than hard-coded. One value per
+// run, so a row can be asserted against it.
+const DISCLOSURE_SHOWN_AT = new Date(Date.now() - 60_000).toISOString();
+const ISO_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-/** The real migration, replayed statement by statement (D1 has no multi-statement prepare). */
-const SCHEMA_STATEMENTS = schema
-  .replace(/--[^\n]*/g, "")
-  .split(";")
-  .map((statement) => statement.trim())
-  .filter((statement) => statement.length > 0);
+/** The real migrations, replayed statement by statement (D1 has no multi-statement prepare). */
+const SCHEMA_STATEMENTS = [initSchema, isoTimestampSchema].flatMap((file) =>
+  file
+    .replace(/--[^\n]*/g, "")
+    .split(";")
+    .map((statement) => statement.trim())
+    .filter((statement) => statement.length > 0),
+);
+
+/** Rate limiting belongs to the router and has its own tests; never throttle these. */
+const UNLIMITED: RateLimit = { limit: async () => ({ success: true }) };
 
 function apiEnv(overrides: Partial<Env> = {}): Env {
   return {
-    ...(env as unknown as Env),
+    ...env,
+    ENVIRONMENT: "ppe",
     STRIPE_SECRET_KEY,
     STRIPE_PUBLISHABLE_KEY,
+    STRIPE_WEBHOOK_SECRET,
     STATS_TOKEN,
+    EVENT_RATE_LIMIT: UNLIMITED,
+    RESERVE_RATE_LIMIT: UNLIMITED,
     ...overrides,
   };
 }
@@ -111,11 +127,87 @@ async function cardOnFile(reservationId: string): Promise<number> {
   return row?.card_on_file ?? -1;
 }
 
+async function reservationRow(reservationId: string): Promise<Record<string, unknown> | null> {
+  return env.DB.prepare("SELECT * FROM reservations WHERE id = ?")
+    .bind(reservationId)
+    .first<Record<string, unknown>>();
+}
+
+async function reservationIdFor(email: string): Promise<string> {
+  const row = await env.DB.prepare("SELECT id FROM reservations WHERE email = ?")
+    .bind(email)
+    .first<{ id: string }>();
+  return row?.id ?? "";
+}
+
+/**
+ * Records outbound requests, so a test can prove a route made no Stripe call at
+ * all, or inspect the form body it sent.
+ */
+function recordFetches(): { urls: string[]; bodies: string[]; restore: () => void } {
+  const urls: string[] = [];
+  const bodies: string[] = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    urls.push(input instanceof Request ? input.url : String(input));
+    bodies.push(typeof init?.body === "string" ? init.body : "");
+    return original(input as RequestInfo, init);
+  };
+  return {
+    urls,
+    bodies,
+    restore: () => {
+      globalThis.fetch = original;
+    },
+  };
+}
+
+function setupIntentSucceededEvent(reservationId: string, setupIntentId: string): string {
+  return JSON.stringify({
+    id: "evt_test_webhook",
+    type: "setup_intent.succeeded",
+    data: {
+      object: { id: setupIntentId, object: "setup_intent", metadata: { reservation_id: reservationId } },
+    },
+  });
+}
+
+/** Signs exactly as Stripe does: HMAC-SHA256 over `<t>.<raw body>`. */
+async function stripeSignatureHeader(
+  raw: string,
+  timestampSeconds: number,
+  secret: string = STRIPE_WEBHOOK_SECRET,
+): Promise<string> {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const mac = await crypto.subtle.sign("HMAC", key, encoder.encode(`${timestampSeconds}.${raw}`));
+  const hex = Array.from(new Uint8Array(mac))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  return `t=${timestampSeconds},v1=${hex}`;
+}
+
+async function postWebhook(raw: string, signature: string | null): Promise<Response> {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (signature !== null) headers["stripe-signature"] = signature;
+  return call(
+    new Request("https://cadbabel.com/api/stripe/webhook", { method: "POST", headers, body: raw }),
+  );
+}
+
 beforeAll(async () => {
   fetchMock.activate();
   fetchMock.disableNetConnect();
-  await env.DB.prepare("DROP TABLE IF EXISTS events").run();
-  await env.DB.prepare("DROP TABLE IF EXISTS reservations").run();
+  // Including 0002's scratch tables, in case a previous run died mid-migration.
+  for (const table of ["events", "reservations", "events_v2", "reservations_v2"]) {
+    await env.DB.prepare(`DROP TABLE IF EXISTS ${table}`).run();
+  }
   for (const statement of SCHEMA_STATEMENTS) {
     await env.DB.prepare(statement).run();
   }
@@ -309,8 +401,10 @@ describe("POST /api/reserve", () => {
       stripe_customer_id: "cus_happy",
       stripe_setup_intent_id: "seti_happy",
       card_on_file: 0,
-      second_yes: "no-reply",
     });
+    // Same shape as disclosure_shown_at, so the two are comparable and a
+    // ?since= window means something.
+    expect(String(row?.["created_at"])).toMatch(ISO_INSTANT);
   });
 
   it.each([
@@ -324,7 +418,7 @@ describe("POST /api/reserve", () => {
 
     const response = await call(
       jsonRequest("/api/reserve", reservePayload({ email })),
-      apiEnv(keys as unknown as Partial<Env>),
+      apiEnv(keys),
     );
     const body = await bodyOf(response);
 
@@ -345,9 +439,11 @@ describe("POST /api/reserve", () => {
   });
 
   it("sends an idempotency key derived from the reservation id on both writes", async () => {
-    // The interceptors only match when the header is present and shaped
-    // `<uuid>:customer` / `<uuid>:setup_intent`; otherwise the call is
-    // unmatched, fetch rejects, and the route answers 502 instead of 201.
+    // Load-bearing twice over: the interceptors only match when the header is
+    // present and shaped `<uuid>:customer` / `<uuid>:setup_intent`, and the key
+    // is seeded from the reservation row id, so a retry against a recovered row
+    // (see "attaches Stripe to a reservation …") reuses it and Stripe replays
+    // the original objects instead of minting duplicates.
     stubStripe(
       {
         method: "POST",
@@ -389,15 +485,150 @@ describe("POST /api/reserve", () => {
     expect(await countRows("reservations")).toBe(0);
   });
 
-  it("409s a second reservation for the same email and keeps one row", async () => {
-    await reserveSuccessfully("seti_first");
+  it("409s a second reservation for an email that already has a SetupIntent", async () => {
+    const reservationId = await reserveSuccessfully("seti_first");
 
     const response = await call(jsonRequest("/api/reserve", reservePayload()));
 
     expect(response.status).toBe(409);
     expect(await bodyOf(response)).toEqual({ error: "email already reserved" });
     expect(await countRows("reservations")).toBe(1);
+    // The loser of the race must not disturb the winner's Stripe objects.
+    expect(await reservationRow(reservationId)).toMatchObject({
+      stripe_customer_id: "cus_test",
+      stripe_setup_intent_id: "seti_first",
+      card_on_file: 0,
+    });
   });
+
+  it("attaches Stripe to a reservation that was taken while Stripe was unconfigured", async () => {
+    const unconfigured = await call(
+      jsonRequest("/api/reserve", reservePayload()),
+      apiEnv({ STRIPE_SECRET_KEY: undefined, STRIPE_PUBLISHABLE_KEY: undefined }),
+    );
+    const stranded = await bodyOf(unconfigured);
+    expect(stranded["card_step"]).toBe("unconfigured");
+
+    stubStripe(
+      { method: "POST", path: "/v1/customers", body: { id: "cus_late" } },
+      {
+        method: "POST",
+        path: "/v1/setup_intents",
+        body: setupIntentPayload("seti_late", "requires_payment_method"),
+      },
+    );
+
+    const recovered = await call(jsonRequest("/api/reserve", reservePayload()));
+    const body = await bodyOf(recovered);
+
+    expect(recovered.status).toBe(201);
+    expect(body["reservation_id"]).toBe(stranded["reservation_id"]);
+    expect(body["card_step"]).toBe("stripe");
+    expect(body["client_secret"]).toBe("seti_late_secret_live");
+    expect(body["publishable_key"]).toBe(STRIPE_PUBLISHABLE_KEY);
+    expect(await countRows("reservations")).toBe(1);
+    expect(await reservationRow(stranded["reservation_id"] as string)).toMatchObject({
+      stripe_customer_id: "cus_late",
+      stripe_setup_intent_id: "seti_late",
+      card_on_file: 0,
+    });
+  });
+
+  it("refuses to hand out a client_secret it could not store, and recovers on retry", async () => {
+    // The first reservation owns seti_shared. The second is handed the same id
+    // by Stripe, which the unique index on stripe_setup_intent_id refuses, so
+    // the UPDATE that patches the ids in fails.
+    await reserveSuccessfully("seti_shared");
+    stubStripe(
+      { method: "POST", path: "/v1/customers", body: { id: "cus_second" } },
+      {
+        method: "POST",
+        path: "/v1/setup_intents",
+        body: setupIntentPayload("seti_shared", "requires_payment_method"),
+      },
+    );
+
+    const blocked = await call(
+      jsonRequest("/api/reserve", reservePayload({ email: "second@example.com" })),
+    );
+
+    expect(blocked.status).toBe(500);
+    expect(await bodyOf(blocked)).toEqual({ error: "internal" });
+    const strandedId = await reservationIdFor("second@example.com");
+    expect(await reservationRow(strandedId)).toMatchObject({
+      stripe_customer_id: null,
+      stripe_setup_intent_id: null,
+      card_on_file: 0,
+    });
+
+    stubStripe(
+      { method: "POST", path: "/v1/customers", body: { id: "cus_second" } },
+      {
+        method: "POST",
+        path: "/v1/setup_intents",
+        body: setupIntentPayload("seti_second", "requires_payment_method"),
+      },
+    );
+
+    const retry = await call(
+      jsonRequest("/api/reserve", reservePayload({ email: "second@example.com" })),
+    );
+
+    expect(retry.status).toBe(201);
+    expect((await bodyOf(retry))["reservation_id"]).toBe(strandedId);
+    expect(await reservationRow(strandedId)).toMatchObject({
+      stripe_customer_id: "cus_second",
+      stripe_setup_intent_id: "seti_second",
+    });
+  });
+
+  it("tags both Stripe objects with the environment that created them", async () => {
+    stubStripe(
+      { method: "POST", path: "/v1/customers", body: { id: "cus_env" } },
+      {
+        method: "POST",
+        path: "/v1/setup_intents",
+        body: setupIntentPayload("seti_env", "requires_payment_method"),
+      },
+    );
+    const recorder = recordFetches();
+
+    const response = await call(
+      jsonRequest("/api/reserve", reservePayload()),
+      apiEnv({ ENVIRONMENT: "production" }),
+    );
+    recorder.restore();
+
+    expect(response.status).toBe(201);
+    expect(recorder.bodies).toHaveLength(2);
+    for (const form of recorder.bodies) {
+      expect(new URLSearchParams(form).get("metadata[environment]")).toBe("production");
+    }
+  });
+
+  it.each([
+    ["a rejected key", 401, "api_error", 500, '{"error":"internal"}'],
+    ["a request we built wrong", 400, "invalid_request_error", 500, '{"error":"internal"}'],
+    ["a Stripe outage", 503, "api_error", 502, '{"error":"payment provider unavailable"}'],
+  ])(
+    "does not blame Stripe for %s",
+    async (_label, stripeStatus, type, expectedStatus, expectedBody) => {
+      stubStripe({
+        method: "POST",
+        path: "/v1/customers",
+        status: stripeStatus,
+        body: { error: { type, code: "whatever", message: "detail for the log only" } },
+      });
+
+      const response = await call(jsonRequest("/api/reserve", reservePayload()));
+      const text = await response.text();
+
+      expect(response.status).toBe(expectedStatus);
+      expect(text).toBe(expectedBody);
+      expect(text).not.toContain("detail for the log only");
+      expect(await countRows("reservations")).toBe(0);
+    },
+  );
 
   it("rejects a malformed email without echoing the submitted value", async () => {
     const response = await call(
@@ -508,23 +739,46 @@ describe("POST /api/reserve/confirm", () => {
     expect(await cardOnFile(reservationId)).toBe(0);
   });
 
-  it("refuses a substituted succeeded intent that belongs to another reservation", async () => {
+  it("refuses an id that is not the stored one without calling Stripe at all", async () => {
+    // No interceptor is registered for this id on purpose: the endpoint must
+    // decide from the row. Reaching Stripe would both amplify one cheap POST
+    // into an API call against our rate limit and turn the 502/409 split into
+    // an existence oracle for arbitrary seti_ ids in our account.
     const reservationId = await reserveSuccessfully("seti_mine");
+    const recorder = recordFetches();
+
+    const response = await call(
+      jsonRequest("/api/reserve/confirm", {
+        reservation_id: reservationId,
+        setup_intent_id: "seti_0000000000000000000000",
+      }),
+    );
+    recorder.restore();
+
+    expect(response.status).toBe(409);
+    expect(await bodyOf(response)).toEqual({ error: "setup_intent_id does not match reservation" });
+    expect(recorder.urls).toEqual([]);
+    expect(await cardOnFile(reservationId)).toBe(0);
+  });
+
+  it("502s when Stripe is unreachable while reading the stored intent", async () => {
+    const reservationId = await reserveSuccessfully("seti_outage");
     stubStripe({
       method: "GET",
-      path: "/v1/setup_intents/seti_someone_else",
-      body: setupIntentPayload("seti_someone_else", "succeeded"),
+      path: "/v1/setup_intents/seti_outage",
+      status: 503,
+      body: { error: { type: "api_error", message: "down" } },
     });
 
     const response = await call(
       jsonRequest("/api/reserve/confirm", {
         reservation_id: reservationId,
-        setup_intent_id: "seti_someone_else",
+        setup_intent_id: "seti_outage",
       }),
     );
 
-    expect(response.status).toBe(409);
-    expect(await bodyOf(response)).toEqual({ error: "setup_intent_id does not match reservation" });
+    expect(response.status).toBe(502);
+    expect(await bodyOf(response)).toEqual({ error: "payment provider unavailable" });
     expect(await cardOnFile(reservationId)).toBe(0);
   });
 
@@ -558,6 +812,106 @@ describe("POST /api/reserve/confirm", () => {
   });
 });
 
+describe("POST /api/stripe/webhook", () => {
+  const nowSeconds = (): number => Math.floor(Date.now() / 1000);
+
+  it("flips card_on_file for the reservation a signed setup_intent.succeeded names", async () => {
+    // The backstop for a visitor whose tab closed before /api/reserve/confirm.
+    const reservationId = await reserveSuccessfully("seti_hooked");
+    const raw = setupIntentSucceededEvent(reservationId, "seti_hooked");
+
+    const response = await postWebhook(raw, await stripeSignatureHeader(raw, nowSeconds()));
+
+    expect(response.status).toBe(200);
+    expect(await cardOnFile(reservationId)).toBe(1);
+  });
+
+  it("refuses an unsigned delivery", async () => {
+    const reservationId = await reserveSuccessfully("seti_unsigned");
+    const raw = setupIntentSucceededEvent(reservationId, "seti_unsigned");
+
+    const response = await postWebhook(raw, null);
+
+    expect(response.status).toBe(400);
+    expect(await bodyOf(response)).toEqual({ error: "stripe-signature: missing" });
+    expect(await cardOnFile(reservationId)).toBe(0);
+  });
+
+  it("refuses a delivery signed with the wrong secret", async () => {
+    const reservationId = await reserveSuccessfully("seti_forged");
+    const raw = setupIntentSucceededEvent(reservationId, "seti_forged");
+
+    const response = await postWebhook(
+      raw,
+      await stripeSignatureHeader(raw, nowSeconds(), "whsec_not_ours"),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await bodyOf(response)).toEqual({ error: "stripe-signature: verification failed" });
+    expect(await cardOnFile(reservationId)).toBe(0);
+  });
+
+  it("refuses a correctly signed delivery replayed outside the tolerance window", async () => {
+    const reservationId = await reserveSuccessfully("seti_stale");
+    const raw = setupIntentSucceededEvent(reservationId, "seti_stale");
+
+    const response = await postWebhook(raw, await stripeSignatureHeader(raw, nowSeconds() - 600));
+
+    expect(response.status).toBe(400);
+    expect(await bodyOf(response)).toEqual({
+      error: "stripe-signature: timestamp outside tolerance",
+    });
+    expect(await cardOnFile(reservationId)).toBe(0);
+  });
+
+  it("refuses every delivery when no webhook secret is configured", async () => {
+    const reservationId = await reserveSuccessfully("seti_nosecret");
+    const raw = setupIntentSucceededEvent(reservationId, "seti_nosecret");
+    const signature = await stripeSignatureHeader(raw, nowSeconds());
+
+    const ctx = createExecutionContext();
+    const response = await handleApi(
+      new Request("https://cadbabel.com/api/stripe/webhook", {
+        method: "POST",
+        headers: { "content-type": "application/json", "stripe-signature": signature },
+        body: raw,
+      }),
+      apiEnv({ STRIPE_WEBHOOK_SECRET: undefined }),
+      ctx,
+    );
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(500);
+    expect(await bodyOf(response)).toEqual({ error: "internal" });
+    expect(await cardOnFile(reservationId)).toBe(0);
+  });
+
+  it("acknowledges an event for an unknown reservation without flipping anything", async () => {
+    const reservationId = await reserveSuccessfully("seti_known");
+    const raw = setupIntentSucceededEvent("00000000-0000-4000-8000-000000000000", "seti_unknown");
+
+    const response = await postWebhook(raw, await stripeSignatureHeader(raw, nowSeconds()));
+
+    expect(response.status).toBe(200);
+    expect(await cardOnFile(reservationId)).toBe(0);
+    expect(await countRows("reservations")).toBe(1);
+  });
+
+  it("acknowledges other signed event types without flipping anything", async () => {
+    const reservationId = await reserveSuccessfully("seti_failed");
+    const raw = JSON.stringify({
+      id: "evt_test_failed",
+      type: "setup_intent.setup_failed",
+      data: { object: { id: "seti_failed", metadata: { reservation_id: reservationId } } },
+    });
+
+    const response = await postWebhook(raw, await stripeSignatureHeader(raw, nowSeconds()));
+
+    expect(response.status).toBe(200);
+    expect(await cardOnFile(reservationId)).toBe(0);
+  });
+});
+
 describe("GET /api/stats", () => {
   const statsRequest = (token?: string): Request =>
     new Request("https://cadbabel.com/api/stats", {
@@ -576,7 +930,6 @@ describe("GET /api/stats", () => {
     const wrong = `${"x".repeat(STATS_TOKEN.length - 1)}y`;
     const response = await call(statsRequest(wrong));
 
-    expect(wrong.length).toBe(STATS_TOKEN.length);
     expect(response.status).toBe(401);
   });
 

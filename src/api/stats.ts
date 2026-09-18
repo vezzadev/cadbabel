@@ -1,5 +1,5 @@
 import { DIRECTIONS, type Direction } from "./events";
-import { ApiError, jsonResponse } from "./http";
+import { ApiError, jsonResponse, optionalIsoBound } from "./http";
 
 interface EventAggregateRow {
   kind: string;
@@ -32,7 +32,8 @@ const UNAUTHORIZED_HEADERS = { "www-authenticate": 'Bearer realm="cadbabel-stats
  */
 export async function handleStats(request: Request, env: Env): Promise<Response> {
   const header = request.headers.get("authorization") ?? "";
-  const presented = /^Bearer (.+)$/.exec(header)?.[1]?.trim() ?? "";
+  // RFC 7235 §2.1: the scheme is case-insensitive. The token is not.
+  const presented = /^Bearer (.+)$/i.exec(header)?.[1]?.trim() ?? "";
   const expected = env.STATS_TOKEN ?? "";
 
   // Compare every byte: length first (lengths are not secret), then a full XOR
@@ -46,16 +47,39 @@ export async function handleStats(request: Request, env: Env): Promise<Response>
   }
   if (mismatch !== 0) throw new ApiError(401, "unauthorized", UNAUTHORIZED_HEADERS);
 
+  // Optional window. `created_at` is ISO-8601 UTC with a T and a Z in both
+  // tables, so a string comparison is a chronological one, and both bounds are
+  // inclusive. Without them every row ever written is mixed into the number,
+  // including smoke traffic.
+  const params = new URL(request.url).searchParams;
+  const since = optionalIsoBound(params, "since");
+  const until = optionalIsoBound(params, "until");
+  const clauses: string[] = [];
+  const bounds: string[] = [];
+  if (since !== null) {
+    clauses.push("created_at >= ?");
+    bounds.push(since);
+  }
+  if (until !== null) {
+    clauses.push("created_at <= ?");
+    bounds.push(until);
+  }
+  const where = clauses.length === 0 ? "" : ` WHERE ${clauses.join(" AND ")}`;
+
   const events = await env.DB.prepare(
-    "SELECT kind, direction, COUNT(*) AS n FROM events GROUP BY kind, direction",
-  ).all<EventAggregateRow>();
+    `SELECT kind, direction, COUNT(*) AS n FROM events${where} GROUP BY kind, direction`,
+  )
+    .bind(...bounds)
+    .all<EventAggregateRow>();
   const reservations = await env.DB.prepare(
     `SELECT direction,
             COUNT(*) AS reservations,
             SUM(card_on_file) AS card_on_file
-       FROM reservations
+       FROM reservations${where}
       GROUP BY direction`,
-  ).all<ReservationAggregateRow>();
+  )
+    .bind(...bounds)
+    .all<ReservationAggregateRow>();
 
   const directions: Record<Direction, DirectionCounters> = {
     "sw-to-fusion": { page_views: 0, door_selects: 0, reservations: 0, card_on_file: 0 },

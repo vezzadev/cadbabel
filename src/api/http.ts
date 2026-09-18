@@ -2,6 +2,9 @@
 
 export type JsonRecord = Record<string, unknown>;
 
+/** Declared body length above which a request is refused unread. */
+const MAX_BODY_BYTES = 4096;
+
 /** A failure the client is allowed to see: `message` is returned verbatim as `{ error }`. */
 export class ApiError extends Error {
   readonly status: number;
@@ -34,6 +37,12 @@ export async function readJsonBody(request: Request): Promise<JsonRecord> {
   const mime = (request.headers.get("content-type") ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
   if (mime !== "application/json") {
     throw new ApiError(415, "content-type: expected application/json");
+  }
+  // Every legitimate body on this API is under 400 bytes. Refuse an oversized
+  // one from its declared length, before buffering a byte of it.
+  const declaredLength = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
+    throw new ApiError(413, `body: must be at most ${MAX_BODY_BYTES} bytes`);
   }
   let parsed: unknown;
   try {
@@ -78,11 +87,49 @@ export function requiredTrue(body: JsonRecord, field: string): void {
   if (body[field] !== true) throw new ApiError(400, `${field}: must be true`);
 }
 
-/** Accepts any parseable instant and normalises it to UTC ISO-8601 for storage. */
+/** An ISO-8601 instant: date, `T`, time, and either `Z` or a numeric offset. */
+const ISO_INSTANT_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}:\d{2})$/;
+
+/** Epoch milliseconds for an ISO-8601 instant, or `null` when the string is not one. */
+function parseIsoInstant(raw: string): number | null {
+  if (!ISO_INSTANT_PATTERN.test(raw)) return null;
+  const parsed = Date.parse(raw);
+  if (!Number.isFinite(parsed)) return null;
+  return parsed;
+}
+
+const ISO_INSTANT_EXPECTED = "an ISO-8601 instant such as 2026-09-17T23:44:47.031Z";
+const MAX_TIMESTAMP_AGE_MS = 24 * 60 * 60 * 1000;
+const MAX_TIMESTAMP_SKEW_MS = 5 * 60 * 1000;
+
+/**
+ * An ISO-8601 instant that has to have actually happened, normalised to UTC for
+ * storage. `Date.parse` alone accepts `"December 17, 1995"`; a disclosure
+ * claimed to have been shown three decades ago is not an audit trail, so the
+ * value must also land inside `[now - 24h, now + 5min]`.
+ */
 export function requiredTimestamp(body: JsonRecord, field: string): string {
   const raw = requiredString(body, field, 64);
-  const parsed = Date.parse(raw);
-  if (!Number.isFinite(parsed)) throw new ApiError(400, `${field}: expected an ISO-8601 timestamp`);
+  const parsed = parseIsoInstant(raw);
+  if (parsed === null) throw new ApiError(400, `${field}: expected ${ISO_INSTANT_EXPECTED}`);
+  const now = Date.now();
+  if (parsed > now + MAX_TIMESTAMP_SKEW_MS) throw new ApiError(400, `${field}: must not be in the future`);
+  if (parsed < now - MAX_TIMESTAMP_AGE_MS) {
+    throw new ApiError(400, `${field}: must be within the last 24 hours`);
+  }
+  return new Date(parsed).toISOString();
+}
+
+/**
+ * An optional ISO-8601 query bound, normalised to UTC so it compares
+ * lexicographically against the stored `created_at` strings. Present but
+ * unparseable is a client bug, not a request for every row.
+ */
+export function optionalIsoBound(params: URLSearchParams, field: string): string | null {
+  const raw = params.get(field);
+  if (raw === null) return null;
+  const parsed = parseIsoInstant(raw.trim());
+  if (parsed === null) throw new ApiError(400, `${field}: expected ${ISO_INSTANT_EXPECTED}`);
   return new Date(parsed).toISOString();
 }
 

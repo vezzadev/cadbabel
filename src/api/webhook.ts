@@ -1,4 +1,4 @@
-import { ApiError, jsonResponse } from "./http";
+import { ApiError, jsonResponse, readBodyText } from "./http";
 
 /**
  * POST /api/stripe/webhook — the backstop for `card_on_file`.
@@ -89,16 +89,11 @@ export async function handleStripeWebhook(
   const header = request.headers.get("stripe-signature");
   if (!header) throw new ApiError(400, "stripe-signature: missing");
 
-  // This path cannot use the JSON parser's 4096-byte cap: the signature covers
-  // the exact bytes sent, so the body must be read whole and as text. Stripe's
-  // own events are a few KB, so an unsigned caller still cannot make us buffer
-  // an arbitrary payload before the HMAC runs.
-  const declaredLength = Number(request.headers.get("content-length") ?? "0");
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_WEBHOOK_BYTES) {
-    throw new ApiError(413, `body: must be at most ${MAX_WEBHOOK_BYTES} bytes`);
-  }
-
-  const raw = await request.text();
+  // This path cannot use the JSON parser: the signature covers the exact bytes
+  // sent, so the body is read whole and as text. It gets its own ceiling, and
+  // the ceiling is enforced on what was read, not on a header a hostile caller
+  // chooses to omit.
+  const raw = await readBodyText(request, MAX_WEBHOOK_BYTES);
   const { timestamp, signatures } = parseSignatureHeader(header);
   const signedAt = Number(timestamp);
   if (timestamp.length === 0 || !Number.isFinite(signedAt) || signatures.length === 0) {

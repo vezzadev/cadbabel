@@ -19,7 +19,7 @@ routes `/api/*` to `src/api/router.ts` and serves every other path from the
 | Method | Path | Request | Response |
 | --- | --- | --- | --- |
 | POST | `/api/event` | `{ kind: "page_view" \| "door_select", direction: "sw-to-fusion" \| "fusion-to-sw" \| null }` | `204`, empty body |
-| POST | `/api/reserve` | `{ email, direction, purpose, needed_by, disclosure_ack, disclosure_shown_at }` | `201` `{ reservation_id, card_step, client_secret, publishable_key }` |
+| POST | `/api/reserve` | `{ email, direction, purpose, needed_by, disclosure_ack, disclosure_shown_at }` | `201` `{ reservation_id, reservation_state, card_step, client_secret, publishable_key, direction, purpose, needed_by }` |
 | POST | `/api/reserve/confirm` | `{ reservation_id, setup_intent_id }` | `{ ok: true }` |
 | POST | `/api/stripe/webhook` | Stripe event body, `stripe-signature` header | `{ received: true }` |
 | GET | `/api/stats` | header `Authorization: Bearer <STATS_TOKEN>`, optional `?since=`/`?until=` | per-direction counts |
@@ -40,13 +40,15 @@ bounds both aggregates inclusively on `created_at`; a malformed bound is a
 
 `/api/event`, `/api/reserve`, and `/api/reserve/confirm` are rate limited per
 client IP — 20 events and 3 reservation calls a minute — and answer `429` with
-`{ error }` and a `retry-after` header above that. A body whose `content-length` exceeds
-4096 on those three paths is refused with `413` unread; every legitimate body
-there is under 400 bytes. `/api/stripe/webhook` is exempt from that parser
-because signature verification needs the complete raw body, and carries its
-own 65536-byte cap. There is no CAPTCHA and no Turnstile: the
-page states that it sets no cookies before a reservation, and Turnstile would
-make that false.
+`{ error }` and a `retry-after` header above that. A body over 4096 bytes on those three
+paths is refused with `413`; every legitimate body there is under 400 bytes.
+`/api/stripe/webhook` is exempt from that parser — signature verification needs
+the complete raw body — and carries its own 65536-byte cap. Both caps check
+`content-length` first and then the bytes actually read, because a chunked or
+streamed upload declares no length and a cap that trusted the header would let
+an undeclared body through. There is no CAPTCHA and no Turnstile: the page
+states that it sets no cookies before a reservation, and Turnstile would make
+that false.
 
 ## Local development
 

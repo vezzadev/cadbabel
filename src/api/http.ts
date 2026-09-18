@@ -33,20 +33,44 @@ export function emptyResponse(status: number, headers: Record<string, string> = 
   return new Response(null, { status, headers: { "cache-control": "no-store", ...headers } });
 }
 
+/**
+ * Reads a body as text under a hard byte ceiling. The declared length is only a
+ * shortcut: `content-length` is absent on a chunked or streamed upload and can
+ * be a non-number, and `Number(null ?? "0")` is 0 while `NaN > limit` is false,
+ * so a caller that simply omits the header would otherwise buffer whatever it
+ * likes. The length of what was actually read is therefore what decides, in
+ * bytes rather than UTF-16 units so multi-byte text cannot slip past.
+ */
+export async function readBodyText(request: Request, limit: number): Promise<string> {
+  const refuse = (seen: number): never => {
+    // Logged because one legitimate oversize body would matter: Stripe retries
+    // a non-2xx for hours and then gives up, so a grown event payload would
+    // cost us `card_on_file` with nothing in the tail to say why.
+    console.error("body over cap", new URL(request.url).pathname, seen, limit);
+    throw new ApiError(413, `body: must be at most ${limit} bytes`);
+  };
+
+  const declared = Number(request.headers.get("content-length") ?? "0");
+  if (declared > limit) refuse(declared);
+
+  const raw = await request.text();
+  const read = new TextEncoder().encode(raw).byteLength;
+  if (read > limit) refuse(read);
+
+  return raw;
+}
+
 export async function readJsonBody(request: Request): Promise<JsonRecord> {
   const mime = (request.headers.get("content-type") ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
   if (mime !== "application/json") {
     throw new ApiError(415, "content-type: expected application/json");
   }
-  // Every legitimate body on this API is under 400 bytes. Refuse an oversized
-  // one from its declared length, before buffering a byte of it.
-  const declaredLength = Number(request.headers.get("content-length") ?? "0");
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
-    throw new ApiError(413, `body: must be at most ${MAX_BODY_BYTES} bytes`);
-  }
+  // Every legitimate body on this API is under 400 bytes.
+  const raw = await readBodyText(request, MAX_BODY_BYTES);
+
   let parsed: unknown;
   try {
-    parsed = await request.json();
+    parsed = JSON.parse(raw);
   } catch {
     throw new ApiError(400, "body: expected valid JSON");
   }

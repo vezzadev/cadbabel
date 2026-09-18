@@ -36,9 +36,11 @@ jobs:
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: test "$CLOUDFLARE_ACCOUNT_ID" = "f2161e1aa7fc40353948a79e3eec5837"
-      # The migration mutates the database, so prove the bundle builds and every
-      # binding resolves before it runs. A build failure discovered afterwards
-      # leaves a migrated database in front of the previous Worker.
+      # The migration mutates the database, so prove the bundle builds and the
+      # config parses before it runs: a build failure found afterwards leaves a
+      # migrated database in front of the previous Worker. This proves nothing
+      # about the bindings existing — --dry-run never calls the API, so a wrong
+      # database_id or a missing secret still passes. Only the deploy shows that.
       - name: Build the Worker without deploying it
         run: npx wrangler deploy --dry-run --config wrangler.production.jsonc
       # Before the Worker, never after: a deploy against an unmigrated database

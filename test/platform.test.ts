@@ -1,5 +1,5 @@
 import { createExecutionContext, env, SELF, waitOnExecutionContext } from "cloudflare:test";
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import initMigration from "../migrations/0001_init.sql?raw";
 import isoTimestampsMigration from "../migrations/0002_iso_timestamps.sql?raw";
@@ -99,18 +99,15 @@ function reserveBody(email: string, disclosureShownAt: string): Record<string, u
   };
 }
 
+// Rows do not leak between tests: `@cloudflare/vitest-pool-workers` defaults
+// `isolatedStorage` to true, which this suite does not override, so each test
+// starts from the state `beforeAll` left. Measured, not assumed — a probe that
+// inserted in one test read 0 rows in the next. That is why the `/api/stats`
+// tests can assert absolute counts with no cleanup hook.
 beforeAll(async () => {
   for (const statement of SCHEMA_STATEMENTS) {
     await env.DB.prepare(statement).run();
   }
-});
-
-// Every test in this file either seeds its own rows or asserts a total, so a
-// row left behind by an earlier test is an assertion changing under a
-// neighbour. `/api/stats` totals in particular are absolute counts.
-beforeEach(async () => {
-  await env.DB.prepare("DELETE FROM events").run();
-  await env.DB.prepare("DELETE FROM reservations").run();
 });
 
 describe("src/index.ts entrypoint", () => {
@@ -266,6 +263,31 @@ describe("request body cap", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ kind: "page_view", direction: null, pad: "a".repeat(5000) }),
       }),
+    );
+
+    expect(response.status).toBe(413);
+    expect(await bodyOf(response)).toEqual({ error: "body: must be at most 4096 bytes" });
+  });
+
+  it("refuses an oversized body that declares no length at all", async () => {
+    // A streamed body carries no `content-length`, which is exactly what a
+    // hostile client sends. A cap that trusted the header would read the whole
+    // thing; this one refuses on what it read.
+    const payload = JSON.stringify({ kind: "page_view", direction: null, pad: "a".repeat(5000) });
+    const body = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(payload));
+        controller.close();
+      },
+    });
+
+    const response = await SELF.fetch(
+      new Request(`${ORIGIN}/api/event`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body,
+        duplex: "half",
+      } as RequestInit),
     );
 
     expect(response.status).toBe(413);

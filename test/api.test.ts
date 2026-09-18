@@ -193,8 +193,17 @@ async function stripeSignatureHeader(
   return `t=${timestampSeconds},v1=${hex}`;
 }
 
-async function postWebhook(raw: string, signature: string | null): Promise<Response> {
-  const headers: Record<string, string> = { "content-type": "application/json" };
+/**
+ * `extra` exists because workerd does not synthesise `content-length` for a
+ * string body — the same thing a chunked upload does not send — so a test that
+ * wants the declared length consulted has to say so.
+ */
+async function postWebhook(
+  raw: string,
+  signature: string | null,
+  extra: Record<string, string> = {},
+): Promise<Response> {
+  const headers: Record<string, string> = { "content-type": "application/json", ...extra };
   if (signature !== null) headers["stripe-signature"] = signature;
   return call(
     new Request("https://cadbabel.com/api/stripe/webhook", { method: "POST", headers, body: raw }),
@@ -544,7 +553,7 @@ describe("POST /api/reserve", () => {
     );
     const stranded = await bodyOf(unconfigured);
     expect(stranded["direction"]).toBe("sw-to-fusion");
-
+    expect(stranded["reservation_state"]).toBe("created");
     stubStripe(
       { method: "POST", path: "/v1/customers", body: { id: "cus_kept" } },
       {
@@ -563,6 +572,11 @@ describe("POST /api/reserve", () => {
 
     expect(recovered.status).toBe(201);
     expect(body["direction"]).toBe("sw-to-fusion");
+    // The page needs the fact, not a diff: a recovered row may hold exactly the
+    // answers just submitted, and then "we kept what was filed" is still the
+    // only honest message.
+    expect(body["reservation_state"]).toBe("recovered");
+    expect(body["purpose"]).toBe("client-deliverable");
     const customerForm = new URLSearchParams(recorder.bodies[0]);
     expect(customerForm.get("metadata[direction]")).toBe("sw-to-fusion");
     expect(customerForm.get("metadata[purpose]")).toBe("client-deliverable");
@@ -875,36 +889,39 @@ describe("POST /api/stripe/webhook", () => {
 
   it("accepts a signed delivery over the 4096-byte JSON cap, which this path cannot use", async () => {
     // Signature verification needs the exact bytes, so this route reads text
-    // rather than going through the JSON parser and its cap. Routing it through
-    // that parser would reject real Stripe events, which are several KB.
+    // rather than going through the JSON parser and its 4096-byte cap. Routing
+    // it through that parser would reject real Stripe events, which are several
+    // KB. `content-length` is declared, so the cap is genuinely consulted and
+    // seen to pass rather than being skipped for want of a header.
     const reservationId = await reserveSuccessfully("seti_large");
     const raw = paddedEvent(reservationId, "seti_large", 5000);
 
-    expect(raw.length).toBeGreaterThan(4096);
+    expect(new TextEncoder().encode(raw).byteLength).toBeGreaterThan(4096);
 
-    const response = await postWebhook(raw, await stripeSignatureHeader(raw, nowSeconds()));
+    const response = await postWebhook(raw, await stripeSignatureHeader(raw, nowSeconds()), {
+      "content-length": String(raw.length),
+    });
 
     expect(response.status).toBe(200);
     expect(await cardOnFile(reservationId)).toBe(1);
   });
 
-  it("refuses a delivery whose declared length is over its own 65536-byte cap", async () => {
-    const reservationId = await reserveSuccessfully("seti_huge");
-    const raw = paddedEvent(reservationId, "seti_huge", 70000);
+  it.each([
+    ["declares its length", true],
+    ["declines to declare one", false],
+  ])("refuses a delivery over the 65536-byte cap that %s", async (_label, declare) => {
+    // The second case is the one that matters. `content-length` is absent on a
+    // chunked or streamed upload, and workerd does not synthesise it, so a cap
+    // that trusted the header alone would let an unsigned caller make us buffer
+    // and HMAC an arbitrary payload.
+    const reservationId = await reserveSuccessfully(`seti_huge_${declare}`);
+    const raw = paddedEvent(reservationId, `seti_huge_${declare}`, 70000);
     const signature = await stripeSignatureHeader(raw, nowSeconds());
-    // `content-length` is set by hand because the cap is a declared-length
-    // check — the point is to refuse before buffering — and the test's own
-    // `new Request` does not set the header the way a real Stripe POST does.
-    const response = await call(
-      new Request("https://cadbabel.com/api/stripe/webhook", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "content-length": String(raw.length),
-          "stripe-signature": signature,
-        },
-        body: raw,
-      }),
+
+    const response = await postWebhook(
+      raw,
+      signature,
+      declare ? { "content-length": String(raw.length) } : {},
     );
 
     expect(response.status).toBe(413);

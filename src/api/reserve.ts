@@ -28,10 +28,23 @@ const EMAIL_TAKEN_PATTERN = /UNIQUE constraint failed: reservations\.email/i;
 /** Stripe outages are upstream failures, not client mistakes: they surface as 502. */
 const STRIPE_UNAVAILABLE = "payment provider unavailable";
 
-interface ReservationRow {
+/**
+ * One interface per SELECT, deliberately. A single shared row type would make
+ * `.first<Row>()` lie on whichever projection fetches fewer columns: the field
+ * typechecks as a string and arrives `undefined`.
+ */
+interface ClaimRow {
   id: string;
   direction: string;
   purpose: string;
+  needed_by: string | null;
+  disclosure_shown_at: string;
+  stripe_setup_intent_id: string | null;
+  card_on_file: number;
+}
+
+interface ConfirmRow {
+  id: string;
   stripe_customer_id: string | null;
   stripe_setup_intent_id: string | null;
   card_on_file: number;
@@ -49,10 +62,12 @@ interface ClaimedReservation {
   reservationId: string;
   claim: EmailClaim;
   /**
-   * The values of record for this row — the submitted ones when we inserted it,
-   * the stored ones when we recovered someone's earlier attempt. Everything
-   * downstream reads these, so Stripe's metadata and the response describe the
-   * row that exists rather than a request that lost a race with itself.
+   * The values of record, every one of them read from the row: the submitted
+   * ones when this request inserted it, the stored ones when it recovered
+   * someone's earlier attempt. Downstream — Stripe's metadata, the response —
+   * reads only these, so nothing describes a request the row does not reflect.
+   * `disclosure_shown_at` in particular is the audit column this product sells,
+   * and a stranger's probe must never be able to restamp it.
    */
   fields: ReservationFields;
 }
@@ -115,24 +130,31 @@ async function claimReservation(env: Env, fields: ReservationFields): Promise<Cl
     if (!(cause instanceof Error) || !EMAIL_TAKEN_PATTERN.test(cause.message)) throw cause;
 
     const existing = await env.DB.prepare(
-      `SELECT id, direction, purpose, stripe_customer_id, stripe_setup_intent_id, card_on_file
+      `SELECT id, direction, purpose, needed_by, disclosure_shown_at,
+              stripe_setup_intent_id, card_on_file
          FROM reservations WHERE email = ?`,
     )
       .bind(fields.email)
-      .first<ReservationRow>();
+      .first<ClaimRow>();
     // The row that just rejected our INSERT is gone already: the state is
     // inconsistent, not a duplicate, and a retry will now succeed.
     if (!existing) throw cause;
     if (existing.stripe_setup_intent_id) throw new ApiError(409, "email already reserved");
     if (existing.card_on_file === 1) throw new ApiError(409, "email already reserved");
-    // The recovered row is not rewritten: this request may carry a different
-    // direction, and nothing here proves it comes from whoever filed the row.
-    // So the stored direction and purpose win, and they are what Stripe's
-    // metadata and the response report.
+    // The recovered row is not rewritten. This request may carry different
+    // answers, and nothing here proves it comes from whoever filed the row — an
+    // email address is not authentication. So every field of record comes from
+    // the row, and the response tells the caller which answers stand.
     return {
       reservationId: existing.id,
       claim: "recovered",
-      fields: { ...fields, direction: existing.direction, purpose: existing.purpose },
+      fields: {
+        email: fields.email,
+        direction: existing.direction,
+        purpose: existing.purpose,
+        neededBy: existing.needed_by,
+        disclosureShownAt: existing.disclosure_shown_at,
+      },
     };
   }
 }
@@ -223,6 +245,27 @@ async function attachStripe(
 }
 
 /**
+ * The answers the row actually carries, echoed on every 201. They can differ
+ * from what was just submitted — a recovered row keeps the answers it was filed
+ * with — and a page that showed the visitor their own inputs while we stored
+ * someone else's would be lying about the only thing this door records.
+ *
+ * `reservation_state` is the fact, not a hint to be re-derived: the page cannot
+ * tell a recovery from a fresh row by diffing the answers, because a recovered
+ * row may have been filed with exactly the answers just submitted, and the
+ * fields stay editable while the request is in flight so a diff also fires on
+ * a visitor who simply changed their mind mid-POST.
+ */
+function answersOfRecord(claimed: ClaimedReservation): Record<string, unknown> {
+  return {
+    reservation_state: claimed.claim === "recovered" ? "recovered" : "created",
+    direction: claimed.fields.direction,
+    purpose: claimed.fields.purpose,
+    needed_by: claimed.fields.neededBy,
+  };
+}
+
+/**
  * POST /api/reserve — records intent and parks a card with a zero-amount
  * SetupIntent. Nothing is ever charged here.
  *
@@ -280,7 +323,7 @@ export async function handleReserve(request: Request, env: Env): Promise<Respons
         card_step: "unconfigured",
         client_secret: null,
         publishable_key: null,
-        direction: claimed.fields.direction,
+        ...answersOfRecord(claimed),
       },
       201,
     );
@@ -288,16 +331,13 @@ export async function handleReserve(request: Request, env: Env): Promise<Respons
 
   const clientSecret = await attachStripe(env, secretKey, claimed);
 
-  // `direction` is echoed because it can differ from the one submitted: a
-  // recovered row keeps the direction it was filed with, and the page says so
-  // rather than showing a choice we are not honouring.
   return jsonResponse(
     {
       reservation_id: claimed.reservationId,
       card_step: "stripe",
       client_secret: clientSecret,
       publishable_key: publishableKey,
-      direction: claimed.fields.direction,
+      ...answersOfRecord(claimed),
     },
     201,
   );
@@ -325,7 +365,7 @@ export async function handleReserveConfirm(request: Request, env: Env): Promise<
        FROM reservations WHERE id = ?`,
   )
     .bind(reservationId)
-    .first<ReservationRow>();
+    .first<ConfirmRow>();
   if (!row) throw new ApiError(404, "reservation not found");
   if (!row.stripe_setup_intent_id) throw new ApiError(409, "reservation has no setup intent");
 

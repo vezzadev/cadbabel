@@ -16,7 +16,12 @@ The Worker must preserve these observable results:
   body; HTTP 400 for a malformed body; HTTP 415 for a non-JSON content type;
   HTTP 413 when `content-length` exceeds 4096
 - `POST /api/reserve`: HTTP **201** with
-  `{ reservation_id, card_step, client_secret, publishable_key }`. `card_step`
+  `{ reservation_id, reservation_state, card_step, client_secret,
+  publishable_key, direction, purpose, needed_by }`. The last three are the
+  answers *of record*: a retry that recovers an earlier row for the same email
+  keeps that row's answers, so they can differ from what was submitted, and
+  `reservation_state` (`"created" | "recovered"`) says which happened so the
+  page states it as a fact rather than inferring it from a diff. `card_step`
   is `"stripe"` once a Customer and SetupIntent exist, or `"unconfigured"` with
   both secrets null when `STRIPE_SECRET_KEY` or `STRIPE_PUBLISHABLE_KEY` is
   absent — the door can be live before Stripe is. HTTP 400 for a malformed
@@ -31,8 +36,11 @@ The Worker must preserve these observable results:
 - `POST /api/stripe/webhook`: HTTP 200 with `{ received: true }` for any
   delivery whose `stripe-signature` verifies, whether or not it flips a row;
   HTTP 400 for a missing, malformed, stale, or unverifiable signature; HTTP 500
-  when `STRIPE_WEBHOOK_SECRET` is unset. The body is read as raw text because
-  the signature covers the exact bytes, so the 4096-byte cap does not apply
+  when `STRIPE_WEBHOOK_SECRET` is unset; HTTP 413 above 65536 bytes. The body
+  is read as raw text because the signature covers the exact bytes, so the
+  4096-byte JSON cap does not apply and this route carries its own. Both caps
+  are enforced on the bytes actually read, not on `content-length`, which a
+  chunked or streamed upload never sends
 - `GET /api/stats`: HTTP 200 with `{ totals, directions }` when
   `Authorization: Bearer <STATS_TOKEN>` matches — the scheme is matched
   case-insensitively per RFC 7235 §2.1, the token byte for byte. Optional

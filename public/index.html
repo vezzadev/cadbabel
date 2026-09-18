@@ -14,18 +14,15 @@
     <link rel="stylesheet" href="/page.css" />
   </head>
   <body>
-    <a class="skip" href="#reserve">Skip to the reservation form</a>
+    <a class="skip" href="#main">Skip to the page</a>
 
     <!-- N9 · edge-aligned minimal nav -->
     <header class="band nav">
       <div class="wrap">
         <div class="rails" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
         <a class="mark" href="/">CAD Babel</a>
-        <nav aria-label="Sections">
+        <nav aria-label="Reserve">
           <ul class="nav-links">
-            <li><a href="#verification">Verification</a></li>
-            <li><a href="#scope">Scope</a></li>
-            <li><a href="#alternatives">Alternatives</a></li>
             <li><a href="#reserve">Reserve</a></li>
           </ul>
         </nav>
@@ -53,7 +50,7 @@
 
             <div class="hero-spec">
               <table class="spec">
-                <caption class="micro">What we check on every part</caption>
+                <caption class="micro">What we check on every part, and the clock once we accept it</caption>
                 <tbody>
                   <tr>
                     <th scope="row">Two-sided Hausdorff distance</th>
@@ -105,13 +102,13 @@
               </p>
               <div class="doors">
                 <div>
-                  <button class="door" type="button" data-direction="sw-to-fusion" data-chosen="no">
+                  <button class="door" type="button" data-direction="sw-to-fusion" data-chosen="no" aria-pressed="false">
                     <span class="door-label">SolidWorks <span class="door-arrow" aria-hidden="true">→</span> Fusion</span>
                     <span class="door-note">You have .sldprt files and you work in Fusion.</span>
                   </button>
                 </div>
                 <div>
-                  <button class="door" type="button" data-direction="fusion-to-sw" data-chosen="no">
+                  <button class="door" type="button" data-direction="fusion-to-sw" data-chosen="no" aria-pressed="false">
                     <span class="door-label">Fusion <span class="door-arrow" aria-hidden="true">→</span> SolidWorks</span>
                     <span class="door-note">You have .f3d files and a client who wants SolidWorks.</span>
                   </button>
@@ -137,6 +134,7 @@
                 edits on both models and compare what comes out.
               </p>
               <table class="spec spec--wide">
+                <caption class="micro">What every translation is checked against before it ships</caption>
                 <tbody>
                   <tr>
                     <th scope="row">Base geometry</th>
@@ -181,7 +179,8 @@
       <!-- the plate: one per page, and it carries the caveat, not a claim -->
       <section class="band plate" id="disclosure" aria-labelledby="disc-h">
         <div class="wrap">
-          <p class="plate-label" id="disc-h">Read this before you reserve</p>
+          <div class="rails" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <h2 class="plate-label" id="disc-h">Read this before you reserve</h2>
           <p class="plate-text">
             This is a pilot that is not operating yet. No charge now or on reservation. Delivery depends on us
             accepting your file and on licensing clearance we don't have today. No start date is promised. The
@@ -273,18 +272,22 @@
             </div>
             <div class="sect-body">
               <p>
-                These four all work today, and three of them cost less than we do. What none of them does is
+                These four all work today, and two of them cost less than we do. What none of them does is
                 take a feature history in and hand one back.
               </p>
               <table class="spec spec--wide">
+                <caption class="micro">What you can use today, what it costs, and what it does not do</caption>
                 <tbody>
                   <tr>
                     <th scope="row">STEP export, reimport</th>
                     <td class="num">Free. You get geometry and no history, so you rebuild anything you want to edit.</td>
                   </tr>
                   <tr>
-                    <th scope="row">FeatureWorks, or SolidWorks 2026 "Convert to Geometry"</th>
-                    <td>STEP into SolidWorks features. Prismatic and revolved shapes only.</td>
+                    <th scope="row">FeatureWorks, or SolidWorks 2026 &ldquo;Convert to Geometry&rdquo;</th>
+                    <td>
+                      STEP into SolidWorks features. Prismatic and revolved shapes only. Both ship inside a
+                      SolidWorks seat, which we budget at about $4,000 a year.
+                    </td>
                   </tr>
                   <tr>
                     <th scope="row">Backflip AI</th>
@@ -305,8 +308,8 @@
                 </tbody>
               </table>
               <p class="micro">
-                Sources: cadsharp.com/cad-migration read 2026-08-11; Backflip AI general availability
-                2026-08-03.
+                Sources: cadsharp.com/cad-migration, page last modified 2026-08-11; Backflip AI general
+                availability 2026-08-03.
               </p>
             </div>
           </div>
@@ -320,31 +323,39 @@
           <div class="sect">
             <div class="sect-head">
               <h2 id="res-h">Reserve a slot</h2>
+            </div>
+            <div class="sect-body">
               <p class="door-note">
                 You put a card on file and we charge it nothing. Within a day you get a reply that repeats the
                 disclosure and asks one question: do you still want the slot on those terms?
               </p>
-            </div>
-            <div class="sect-body">
+              <noscript>
+                <p class="result" data-state="error">
+                  This form needs JavaScript: it writes the reservation through our API and puts the card on
+                  file with Stripe, so with JavaScript off, submitting it records nothing. Email
+                  <a href="mailto:pedro@vezza.com.br">pedro@vezza.com.br</a> instead and say which direction
+                  you want. The disclosure above applies either way.
+                </p>
+              </noscript>
               <form class="form" id="reserve-form" novalidate>
                 <fieldset class="fieldset">
                   <legend>Direction</legend>
                   <div class="radios">
                     <label class="radio">
-                      <input type="radio" name="direction" value="sw-to-fusion" />
+                      <input type="radio" name="direction" value="sw-to-fusion" required aria-required="true" aria-describedby="direction-help" />
                       <span>SolidWorks → Fusion</span>
                     </label>
                     <label class="radio">
-                      <input type="radio" name="direction" value="fusion-to-sw" />
+                      <input type="radio" name="direction" value="fusion-to-sw" required aria-required="true" aria-describedby="direction-help" />
                       <span>Fusion → SolidWorks</span>
                     </label>
                   </div>
-                  <p class="helper" id="direction-help" data-state="idle"></p>
+                  <p class="helper" id="direction-help" data-state="idle" aria-live="polite"></p>
                 </fieldset>
 
                 <div class="field">
                   <label for="purpose">What the part is for</label>
-                  <select id="purpose" name="purpose">
+                  <select id="purpose" name="purpose" required aria-required="true" aria-describedby="purpose-help">
                     <option value="">Choose one</option>
                     <option value="client-deliverable">A client deliverable</option>
                     <option value="product">A product of my own</option>
@@ -355,18 +366,18 @@
 
                 <div class="field">
                   <label for="needed_by">When you need it</label>
-                  <input type="date" id="needed_by" name="needed_by" />
+                  <input type="date" id="needed_by" name="needed_by" aria-describedby="needed_by-help" />
                   <p class="helper" id="needed_by-help" data-state="idle">Optional, and we promise no date either way.</p>
                 </div>
 
                 <div class="field">
                   <label for="email">Email</label>
-                  <input type="email" id="email" name="email" autocomplete="email" inputmode="email" />
+                  <input type="email" id="email" name="email" autocomplete="email" inputmode="email" required aria-required="true" aria-describedby="email-help" />
                   <p class="helper" id="email-help" data-state="idle">We use it to repeat the disclosure and ask that one question.</p>
                 </div>
 
                 <label class="ack">
-                  <input type="checkbox" id="disclosure_ack" name="disclosure_ack" />
+                  <input type="checkbox" id="disclosure_ack" name="disclosure_ack" required aria-required="true" aria-describedby="ack-help" />
                   <span>
                     I have read the disclosure above: not operating yet, no charge, delivery conditional on
                     file acceptance and licensing clearance, no start date, tree shape not preserved.
@@ -413,9 +424,12 @@
           </div>
         </div>
         <div class="foot-rule">
-          <span>No cookies, no analytics vendor.</span>
+          <span>No analytics vendor. No cookies until you reserve.</span>
           <span>We count two things: page views and direction picks.</span>
-          <span>Stripe handles the card fields, and its script loads only when you reserve.</span>
+          <span>
+            Stripe handles the card fields. Its script loads only when you reserve, and it then sets two
+            cookies of its own on this domain: a session id, and an identifier that lasts a year.
+          </span>
         </div>
       </div>
     </footer>

@@ -102,7 +102,7 @@ h2 {
 }
 
 h3 {
-  font-size: 1.0625rem;
+  font-size: var(--fs-sub);
   line-height: 1.25;
   letter-spacing: -0.015em;
 }
@@ -119,14 +119,27 @@ a {
   border-bottom: var(--hair) solid var(--rule-strong);
 }
 
-a:hover {
-  border-bottom-color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  a:hover {
+    border-bottom-color: var(--ink);
+  }
+}
+
+a:active {
+  color: var(--ink-2);
+  border-bottom-color: var(--ink-2);
 }
 
 :focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
   transition: none;
+}
+
+/* the one place the signal floods type */
+::selection {
+  background: var(--signal);
+  color: var(--signal-ink);
 }
 
 .micro {
@@ -146,14 +159,15 @@ a:hover {
 
 .nav > .wrap {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--s-5);
   padding-block: var(--s-4);
 }
 
 .mark {
-  font-size: 1.125rem;
+  font-size: var(--fs-sub);
+  line-height: 1;
   font-weight: 700;
   letter-spacing: -0.02em;
   border-bottom: 0;
@@ -167,24 +181,20 @@ a:hover {
   list-style: none;
 }
 
-/* Below the diptych breakpoint only the action survives: no hamburger, no drawer. */
-@media (max-width: 47.99rem) {
-  .nav-links li:not(:last-child) {
-    display: none;
-  }
-}
-
 .nav-links a {
   font-size: var(--fs-micro);
   letter-spacing: var(--ls-micro);
   text-transform: uppercase;
   font-weight: 600;
   white-space: nowrap;
+  line-height: 1;
   border-bottom-color: transparent;
 }
 
-.nav-links a:hover {
-  border-bottom-color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .nav-links a:hover {
+    border-bottom-color: var(--ink);
+  }
 }
 
 /* ─── H2 hero: 7/5 diptych, occupied side left ─── */
@@ -208,12 +218,12 @@ a:hover {
 .hero-copy {
   display: grid;
   gap: var(--s-5);
-  padding-block: var(--s-8) var(--s-7);
+  padding-block: var(--s-8) var(--s-9);
   padding-right: var(--gutter);
 }
 
 .hero-sub {
-  font-size: 1.0625rem;
+  font-size: var(--fs-sub);
 }
 
 .price {
@@ -237,7 +247,7 @@ a:hover {
 }
 
 .hero-spec {
-  padding-block: var(--s-8) var(--s-7);
+  padding-block: var(--s-8) var(--s-9);
 }
 
 @media (max-width: 59.99rem) {
@@ -289,8 +299,10 @@ a:hover {
   transition: background-color var(--dur) var(--ease);
 }
 
-.spec tbody tr:hover {
-  background: var(--paper-2);
+@media (hover: hover) and (pointer: fine) {
+  .spec tbody tr:hover {
+    background: var(--paper-2);
+  }
 }
 
 .spec--wide th {
@@ -313,12 +325,40 @@ a:hover {
 @media (min-width: 60rem) {
   .sect {
     grid-template-columns: minmax(0, 3fr) minmax(0, 9fr);
-    gap: var(--gutter);
+    /* no column gap: the tracks then measure an exact 3/12 and 9/12 of the
+       shell, so the dividing rule lands on a rail. The head's padding-right
+       and the body's padding-left carry the air instead. */
+    column-gap: 0;
+    padding-block: var(--s-10);
   }
 
   .sect > .sect-body {
     border-left: var(--hair) solid var(--rule-strong);
     padding-left: var(--gutter);
+  }
+
+  /* Split Studio: the occupied side steps as the page descends, so no two
+     consecutive ruled sections share a silhouette. Every second band that
+     carries a .sect inverts its tracks — 9fr body left, 3fr head right — and
+     the dividing rule travels to the body's other edge. Both boundaries land
+     on a column track (3 of 12, then 9 of 12), so the rails still read
+     through. Counted over the .sect-bearing bands only, so the plate between
+     them does not break the rhythm. */
+  main > .band:nth-child(even of .band:has(.sect)) .sect {
+    grid-template-columns: minmax(0, 9fr) minmax(0, 3fr);
+  }
+
+  main > .band:nth-child(even of .band:has(.sect)) .sect-head {
+    order: 2;
+    padding-right: 0;
+    padding-left: var(--gutter);
+  }
+
+  main > .band:nth-child(even of .band:has(.sect)) .sect > .sect-body {
+    border-left: 0;
+    border-right: var(--hair) solid var(--rule-strong);
+    padding-left: 0;
+    padding-right: var(--gutter);
   }
 }
 
@@ -377,15 +417,32 @@ a:hover {
   }
 }
 
-.door:hover {
+@media (hover: hover) and (pointer: fine) {
+  .door:hover {
+    background: var(--paper-2);
+  }
+}
+
+.door:active {
+  background: var(--paper-3);
+}
+
+.door:disabled {
   background: var(--paper-2);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+.door:disabled .door-note {
+  color: var(--ink-3);
 }
 
 .door-label {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--s-3);
-  font-size: clamp(1.375rem, 3vw, 2rem);
+  gap: var(--s-2) var(--s-3);
+  font-size: var(--fs-head);
   font-weight: 800;
   letter-spacing: -0.03em;
   white-space: nowrap;
@@ -396,12 +453,21 @@ a:hover {
   transition: transform var(--dur) var(--ease);
 }
 
-.door:hover .door-arrow,
 .door:focus-visible .door-arrow {
   transform: translateX(8px);
 }
 
-.door-note {
+@media (hover: hover) and (pointer: fine) {
+  .door:hover .door-arrow {
+    transform: translateX(8px);
+  }
+}
+
+.door:active .door-arrow {
+  transform: translateX(4px);
+}
+
+.door .door-note {
   font-size: var(--fs-spec);
   color: var(--ink-2);
   max-width: 34ch;
@@ -418,13 +484,20 @@ a:hover {
   letter-spacing: var(--ls-micro);
   text-transform: uppercase;
   color: var(--ink-3);
+  /* its own line, so nowrap display type can never push it off the track */
+  flex-basis: 100%;
 }
 
-/* ─── the plate: one per page, full-bleed, and it carries the caveat ─── */
+/* ─── the plate: one per page, full-bleed, and it carries the caveat ───
+   Flooded full-chroma signal. The theme exempts the plate from the 5%
+   painted-area cap (grid.md:47) and bans wash/tint fills outside
+   paper-2/paper-3 (grid.md:82), so a diluted band would break the theme
+   to satisfy a cap the plate is not under. The disclosure is the one thing
+   on this page that must be impossible to skim past. */
 
 .plate {
   background: var(--signal);
-  color: var(--ink);
+  color: var(--signal-ink);
   border-bottom: var(--hair) solid var(--ink);
 }
 
@@ -434,12 +507,29 @@ a:hover {
   gap: var(--s-4);
 }
 
+@media (min-width: 60rem) {
+  .plate > .wrap {
+    padding-block: var(--s-9);
+  }
+}
+
 .plate-label {
   font-size: var(--fs-micro);
   letter-spacing: var(--ls-micro);
   text-transform: uppercase;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--signal-ink);
+}
+
+/* the bar from the kit: a 3px ink rule over the head, cut to two tracks */
+.plate-label::before {
+  content: "";
+  display: block;
+  width: calc(100% / 6);
+  min-width: 5rem;
+  height: 3px;
+  margin-bottom: var(--s-3);
+  background: var(--signal-ink);
 }
 
 /* same size as the price — this is the load-bearing rule of the page */
@@ -448,8 +538,14 @@ a:hover {
   line-height: 1.32;
   font-weight: 500;
   letter-spacing: -0.015em;
-  color: var(--ink);
+  color: var(--signal-ink);
   max-width: 46ch;
+}
+
+/* the rails cross the plate: ink at 22% reads on flooded signal the way
+   --rule reads on paper, so the grid is never interrupted */
+.plate .rails > i {
+  border-right-color: color-mix(in oklab, var(--signal-ink) 22%, transparent);
 }
 
 /* ─── cells: scope, out of scope ─── */
@@ -521,8 +617,10 @@ a:hover {
   transition: background-color var(--dur) var(--ease);
 }
 
-.step:hover {
-  background: var(--paper-2);
+@media (hover: hover) and (pointer: fine) {
+  .step:hover {
+    background: var(--paper-2);
+  }
 }
 
 .step-n {
@@ -571,13 +669,17 @@ select {
   color: var(--ink);
   font: inherit;
   font-size: var(--fs-spec);
+  min-height: var(--control-h);
+  line-height: 1.2;
   transition: border-color var(--dur) var(--ease), background-color var(--dur) var(--ease);
 }
 
-input[type="email"]:hover,
-input[type="date"]:hover,
-select:hover {
-  border-color: var(--ink-3);
+@media (hover: hover) and (pointer: fine) {
+  input[type="email"]:hover,
+  input[type="date"]:hover,
+  select:hover {
+    border-color: var(--ink-3);
+  }
 }
 
 input[type="email"]:disabled,
@@ -588,7 +690,8 @@ select:disabled {
   cursor: not-allowed;
 }
 
-input[aria-invalid="true"] {
+input[aria-invalid="true"],
+select[aria-invalid="true"] {
   border-color: var(--state-error);
 }
 
@@ -653,6 +756,18 @@ input[aria-invalid="true"] {
   cursor: pointer;
 }
 
+@media (hover: hover) and (pointer: fine) {
+  .radio:hover,
+  .ack:hover {
+    background: var(--paper-2);
+  }
+}
+
+.radio:active,
+.ack:active {
+  background: var(--paper-3);
+}
+
 .btn {
   justify-self: start;
   padding: var(--s-3) var(--s-6);
@@ -662,15 +777,19 @@ input[aria-invalid="true"] {
   color: var(--paper);
   font: inherit;
   font-size: var(--fs-spec);
+  min-height: var(--control-h);
+  line-height: 1.2;
   font-weight: 600;
   letter-spacing: 0.01em;
   cursor: pointer;
   transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
 }
 
-.btn:hover {
-  background: var(--paper);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover {
+    background: var(--paper);
+    color: var(--ink);
+  }
 }
 
 .btn:active {
@@ -690,6 +809,18 @@ input[aria-invalid="true"] {
   background: var(--paper-2);
   color: var(--ink-2);
   cursor: progress;
+}
+
+.btn[data-state="error"] {
+  border-color: var(--state-error);
+  background: var(--paper);
+  color: var(--state-error);
+}
+
+.btn[data-state="ok"] {
+  border-color: var(--state-ok);
+  background: var(--paper);
+  color: var(--state-ok);
 }
 
 .card-step {

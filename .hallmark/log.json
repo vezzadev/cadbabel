@@ -14,14 +14,14 @@
       "archetypes": ["n9", "h2", "f3", "f4", "c2", "s5", "ft4"],
       "axes": {
         "value": "light",
-        "type": "grotesk-heavy-lowercase",
+        "type": "grotesk-bold-sentence-case",
         "color": "chromatic-yellow"
       },
       "typeface": "Archivo 400-800 variable, self-hosted latin subset",
       "signal_ink": "oklch(82% 0.17 95)",
-      "plate": "disclosure band, full-bleed signal yellow, ink type at --fs-price",
-      "motion": ["row hover background", "border-arrow 8px translate"],
-      "notes": "First Hallmark run for this project, so no rotation constraint applied. Grid chosen over a card-based theme because the exposed 12-column hairline rails read as drawing paper for a CAD audience; yellow over ultramarine to carry the McMaster tone reference and avoid default-AI blue."
+      "plate": "disclosure band, full-bleed signal fill, signal-ink type at --fs-price, kit bar in ink over the label, rails crossing at 22% ink",
+      "motion": ["row hover background", "glyph-arrow 8px translate"],
+      "notes": "First Hallmark run for this project, so no rotation constraint applied. Grid chosen over a card-based theme because the exposed 12-column hairline rails read as drawing paper for a CAD audience; yellow over ultramarine to carry the McMaster tone reference and avoid default-AI blue. One deliberate departure from the theme, recorded rather than claimed as built: the display axis ships Archivo 700 in sentence case, not the theme's grotesk-heavy-lowercase, because 'SolidWorks' and 'Fusion' are trademarks that cannot be lowercased and the operator asked for the lighter McMaster heading voice. The plate was briefly diluted to an 18% signal wash to bring painted accent under the 5% accent-footprint cap, then reverted: grid.md:47 exempts the plate from that cap ('the plate is the one exception') and grid.md:82 bans wash and tint fills outside paper-2/paper-3, so the dilution was breaking the theme to satisfy a cap the plate is not under. Full-chroma signal is 48.4% of a 1280x800 viewport centred on the plate and that is the intended poster moment; signal-ink on signal measures 11.09:1, and .plate-text matches .price b at every width (20px to 768, 28px above)."
     }
   ]
 }

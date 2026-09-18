@@ -21,6 +21,11 @@
   --paper-2: oklch(96.4% 0.005 255);
   --paper-3: oklch(93.4% 0.006 255);
 
+  /* the ground type sits on. Every surface that paints a background restates
+     it here so type can occlude the rails behind its own line boxes — see the
+     "type carries its own ground" block in page.css. */
+  --ground: var(--paper);
+
   /* rules — the grid is the ornament */
   --rule: oklch(88% 0.008 255);
   /* boundary of every control: 3.52:1 on --paper, clears 1.4.11's 3:1 */

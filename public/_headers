@@ -1,0 +1,12 @@
+# Cloudflare static-assets headers. Not served itself.
+#
+# The Stripe Elements iframe is a js.stripe.com document, so its request for our
+# font is cross-origin, and a font request is CORS-gated whatever the CDN says.
+# Without this the iframe logs "Access to font ... blocked by CORS policy", the
+# face reports `status: "error"`, and the card field silently falls back to
+# Helvetica beside a page in Archivo. Measured on the PPE worker before and
+# after. A public font file is the whole point of serving it, so `*` is the
+# accurate answer rather than a list of Stripe hostnames to rot.
+/fonts/*
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=31536000, immutable

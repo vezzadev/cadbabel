@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CAD Babel — SolidWorks ⇄ Fusion feature history, verified</title>
+    <meta
+      name="description"
+      content="A SolidWorks part in, a Fusion part out, still editable. Or the reverse. We verify every part against 5 dimension changes you name and 3 you never see. $149 per part. A pilot that is not operating yet."
+    />
+    <link rel="preload" href="/fonts/archivo-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/tokens.css" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/page.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the page</a>
+
+    <!-- N9 · edge-aligned minimal nav -->
+    <header class="band nav">
+      <div class="wrap">
+        <div class="rails" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <a class="mark" href="/">CAD Babel</a>
+        <nav aria-label="Reserve">
+          <ul class="nav-links">
+            <li><a href="#reserve">Reserve</a></li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <!-- H2 · split diptych hero, 7/5, right half carries the real numbers -->
+      <section class="band" aria-labelledby="h1">
+        <div class="wrap">
+          <div class="rails" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="diptych">
+            <div class="hero-copy">
+              <h1 id="h1">Feature-history translation between SolidWorks and Fusion</h1>
+              <p class="hero-sub">
+                Send us a part from either system and we rebuild its feature tree in the other one, so the
+                result is still editable. We then verify that rebuild against 5 dimension changes you name and
+                3 edits you never get to see, and the report ships with the file.
+              </p>
+              <p class="price">
+                <b class="num">$149 per part</b>
+                <span>Parts over 30 features quoted separately.</span>
+              </p>
+            </div>
+
+            <div class="hero-spec">
+              <table class="spec">
+                <caption class="micro">What we check on every part, and the clock once we accept it</caption>
+                <tbody>
+                  <tr>
+                    <th scope="row">Two-sided Hausdorff distance</th>
+                    <td class="num">&lt; 0.05 mm</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Sampled surface points</th>
+                    <td class="num">10,000</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Volume</th>
+                    <td class="num">within 0.1 %</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Centre of mass</th>
+                    <td class="num">&lt; 0.05 mm</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Dimension changes you declare</th>
+                    <td class="num">5</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Held-out edits</th>
+                    <td class="num">3</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Turnaround from written acceptance</th>
+                    <td class="num">48 h</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- two equal doors, nothing pre-selected, counted separately -->
+      <section class="band" aria-labelledby="doors-h">
+        <div class="wrap">
+          <div class="rails" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="sect">
+            <div class="sect-head">
+              <h2 id="doors-h">Choose a direction</h2>
+            </div>
+            <div class="sect-body">
+              <p>
+                We have not pre-picked one for you. Views and reservations are counted separately for each
+                direction, because which one people actually want is what this page is here to find out.
+              </p>
+              <div class="doors">
+                <div>
+                  <button class="door" type="button" data-direction="sw-to-fusion" data-chosen="no" aria-pressed="false">
+                    <span class="door-label">SolidWorks <span class="door-arrow" aria-hidden="true">→</span> Fusion</span>
+                    <span class="door-note">You have .sldprt files and you work in Fusion.</span>
+                  </button>
+                </div>
+                <div>
+                  <button class="door" type="button" data-direction="fusion-to-sw" data-chosen="no" aria-pressed="false">
+                    <span class="door-label">Fusion <span class="door-arrow" aria-hidden="true">→</span> SolidWorks</span>
+                    <span class="door-note">You have .f3d files and a client who wants SolidWorks.</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- F3 · tabular spec sheet -->
+      <section class="band" id="verification" aria-labelledby="ver-h">
+        <div class="wrap">
+          <div class="rails" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="sect">
+            <div class="sect-head">
+              <h2 id="ver-h">Verification</h2>
+            </div>
+            <div class="sect-body">
+              <p>
+                Matching geometry proves nothing about editability. One dumb imported body matches perfectly,
+                and a free STEP round trip already gives you that. So we check behaviour instead: we replay
+                edits on both models and compare what comes out.
+              </p>
+              <table class="spec spec--wide">
+                <caption class="micro">What every translation is checked against before it ships</caption>
+                <tbody>
+                  <tr>
+                    <th scope="row">Base geometry</th>
+                    <td>Regenerates in the target and matches on all three metrics.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">5 declared dimension changes</th>
+                    <td>
+                      You name the driving dimensions. We apply each one on its own, to your model and to the
+                      translation, and compare the two results.
+                    </td>
+                  </tr>
+                  <tr>
+                    <th scope="row">3 held-out edits</th>
+                    <td>
+                      We choose these, and we open them only after the translation is frozen and its hash is
+                      recorded. A held-out result stands: no retries.
+                    </td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Match, all three</th>
+                    <td class="num">
+                      Two-sided Hausdorff &lt; 0.05 mm over 10,000 sampled surface points; volume within
+                      0.1 %; centre of mass within 0.05 mm.
+                    </td>
+                  </tr>
+                  <tr>
+                    <th scope="row">A failing edit</th>
+                    <td>Fails the whole part. We do not deliver a failed part, and we do not bill for one.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">The report</th>
+                    <td>Every edit, both models, the three numbers per edit, pass or fail. It ships with the file.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- the plate: one per page, and it carries the caveat, not a claim -->
+      <section class="band plate" id="disclosure" aria-labelledby="disc-h">
+        <div class="wrap">
+          <div class="rails" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <h2 class="plate-label" id="disc-h">Read this before you reserve</h2>
+          <p class="plate-text">
+            This is a pilot that is not operating yet. No charge now or on reservation. Delivery depends on us
+            accepting your file and on licensing clearance we don't have today. No start date is promised. The
+            48-hour clock starts only when we accept your file in writing. Your source tree shape is not
+            preserved; the model is rebuilt to pass the verification report.
+          </p>
+        </div>
+      </section>
+
+      <!-- scope / out of scope cells -->
+      <section class="band" id="scope" aria-labelledby="scope-h">
+        <div class="wrap">
+          <div class="rails" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="sect">
+            <div class="sect-head">
+              <h2 id="scope-h">Scope of the pilot</h2>
+            </div>
+            <div class="sect-body">
+              <div class="cells cells--3">
+                <div class="cell">
+                  <h3>Assemblies</h3>
+                  <p>One part per job. We do not take assemblies in the pilot.</p>
+                </div>
+                <div class="cell">
+                  <h3>Drawings</h3>
+                  <p>We translate the part, not the drawing. Views, dimensions and annotations stay put.</p>
+                </div>
+                <div class="cell">
+                  <h3>Configurations</h3>
+                  <p>You point at one configuration and that is the one we build. The others do not come across.</p>
+                </div>
+                <div class="cell">
+                  <h3>Tree shape</h3>
+                  <p>We rebuild the model to pass verification. It will not mirror the tree you sent.</p>
+                </div>
+                <div class="cell">
+                  <h3>Over 30 features</h3>
+                  <p>$149 covers parts up to 30 features. Above that we quote you separately.</p>
+                </div>
+                <div class="cell">
+                  <h3>Licensing clearance</h3>
+                  <p>We do not have it today. It gates delivery, which is why we promise no date.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- F4 · step sequence, genuinely ordinal -->
+      <section class="band" aria-labelledby="flow-h">
+        <div class="wrap">
+          <div class="rails" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="sect">
+            <div class="sect-head">
+              <h2 id="flow-h">How a job runs</h2>
+            </div>
+            <div class="sect-body">
+              <div class="steps">
+                <div class="step">
+                  <span class="step-n num">01</span>
+                  <p>You send the part and name the 5 driving dimensions you would change.</p>
+                </div>
+                <div class="step">
+                  <span class="step-n num">02</span>
+                  <p>We accept or decline in writing. Our written acceptance is what starts the 48-hour clock.</p>
+                </div>
+                <div class="step">
+                  <span class="step-n num">03</span>
+                  <p>We rebuild the tree in the target system and run your 5 changes. Then we freeze the translation, record its hash, and open the 3 held-out edits.</p>
+                </div>
+                <div class="step">
+                  <span class="step-n num">04</span>
+                  <p>You get the target file and the verification report. A failing edit fails the part.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- alternatives: factual, sourced, no strawman -->
+      <section class="band" id="alternatives" aria-labelledby="alt-h">
+        <div class="wrap">
+          <div class="rails" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="sect">
+            <div class="sect-head">
+              <h2 id="alt-h">Alternatives</h2>
+            </div>
+            <div class="sect-body">
+              <p>
+                These four all work today, and two of them cost less than we do. What none of them does is
+                take a feature history in and hand one back.
+              </p>
+              <table class="spec spec--wide">
+                <caption class="micro">What you can use today, what it costs, and what it does not do</caption>
+                <tbody>
+                  <tr>
+                    <th scope="row">STEP export, reimport</th>
+                    <td class="num">Free. You get geometry and no history, so you rebuild anything you want to edit.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">FeatureWorks, or SolidWorks 2026 &ldquo;Convert to Geometry&rdquo;</th>
+                    <td>
+                      STEP into SolidWorks features. Prismatic and revolved shapes only. Both ship inside a
+                      SolidWorks seat, which we budget at about $4,000 a year.
+                    </td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Backflip AI</th>
+                    <td class="num">$1.52–$10 per job, as a Fusion add-in. It takes a mesh in and gives a parametric tree out, so there is nowhere to put a history.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">CADSharp</th>
+                    <td class="num">
+                      $250/hr with a $1,000 minimum. Designers who know the target system redo the model by
+                      hand. Their own page counts 300k+ neutral geometry migrations against just over 1K
+                      feature-based ones since 2022.
+                    </td>
+                  </tr>
+                  <tr>
+                    <th scope="row">This page</th>
+                    <td class="num">$149 per part, history in and out, verified by replayed edits. Not operating yet.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p class="micro">
+                Sources: cadsharp.com/cad-migration, page last modified 2026-08-11; Backflip AI general
+                availability 2026-08-03.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- C2 · inline form as CTA -->
+      <section class="band" id="reserve" aria-labelledby="res-h">
+        <div class="wrap">
+          <div class="rails" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="sect">
+            <div class="sect-head">
+              <h2 id="res-h">Reserve a slot</h2>
+            </div>
+            <div class="sect-body">
+              <p class="door-note">
+                You put a card on file and we charge it nothing. Within a day you get a reply that repeats the
+                disclosure and asks one question: do you still want the slot on those terms?
+              </p>
+              <noscript>
+                <p class="result" data-state="error">
+                  This form needs JavaScript: it writes the reservation through our API and puts the card on
+                  file with Stripe, so with JavaScript off, submitting it records nothing. Email
+                  <a href="mailto:pedro@vezza.com.br">pedro@vezza.com.br</a> instead and say which direction
+                  you want. The disclosure above applies either way.
+                </p>
+              </noscript>
+              <form class="form" id="reserve-form" novalidate>
+                <fieldset class="fieldset">
+                  <legend>Direction</legend>
+                  <div class="radios">
+                    <label class="radio">
+                      <input type="radio" name="direction" value="sw-to-fusion" required aria-required="true" aria-describedby="direction-help" />
+                      <span>SolidWorks → Fusion</span>
+                    </label>
+                    <label class="radio">
+                      <input type="radio" name="direction" value="fusion-to-sw" required aria-required="true" aria-describedby="direction-help" />
+                      <span>Fusion → SolidWorks</span>
+                    </label>
+                  </div>
+                  <p class="helper" id="direction-help" data-state="idle" aria-live="polite"></p>
+                </fieldset>
+
+                <div class="field">
+                  <label for="purpose">What the part is for</label>
+                  <select id="purpose" name="purpose" required aria-required="true" aria-describedby="purpose-help">
+                    <option value="">Choose one</option>
+                    <option value="client-deliverable">A client deliverable</option>
+                    <option value="product">A product of my own</option>
+                    <option value="hobby">Hobby or personal</option>
+                  </select>
+                  <p class="helper" id="purpose-help" data-state="idle"></p>
+                </div>
+
+                <div class="field">
+                  <label for="needed_by">When you need it</label>
+                  <input type="date" id="needed_by" name="needed_by" aria-describedby="needed_by-help" />
+                  <p class="helper" id="needed_by-help" data-state="idle">Optional, and we promise no date either way.</p>
+                </div>
+
+                <div class="field">
+                  <label for="email">Email</label>
+                  <input type="email" id="email" name="email" autocomplete="email" inputmode="email" required aria-required="true" aria-describedby="email-help" />
+                  <p class="helper" id="email-help" data-state="idle">We use it to repeat the disclosure and ask that one question.</p>
+                </div>
+
+                <label class="ack">
+                  <input type="checkbox" id="disclosure_ack" name="disclosure_ack" required aria-required="true" aria-describedby="ack-help" />
+                  <span>
+                    I have read the disclosure above: not operating yet, no charge, delivery conditional on
+                    file acceptance and licensing clearance, no start date, tree shape not preserved.
+                  </span>
+                </label>
+                <p class="helper" id="ack-help" data-state="idle"></p>
+
+                <button class="btn" type="submit" id="reserve-submit">Reserve a slot</button>
+                <p class="result" id="reserve-result" data-state="idle" role="status"></p>
+
+                <div class="card-step" id="card-step" hidden>
+                  <p class="micro">Card on file, charged nothing</p>
+                  <div class="card-mount" id="card-mount"></div>
+                  <button class="btn" type="button" id="card-submit">Put the card on file</button>
+                  <p class="result" id="card-result" data-state="idle" role="status"></p>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Ft4 · dense colophon -->
+    <footer class="band foot">
+      <div class="wrap">
+        <div class="rails" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="foot-cols">
+          <div class="foot-col">
+            <h3>CAD Babel</h3>
+            <p>We translate a SolidWorks or Fusion part into the other one and keep the feature history, then
+              prove it by replaying edits.</p>
+            <p>$149 per part, and we quote parts over 30 features separately.</p>
+          </div>
+          <div class="foot-col">
+            <h3>Status</h3>
+            <p>A pilot that is not operating. We charge nothing now and nothing when you reserve.</p>
+            <p>We do not have licensing clearance, and it gates delivery.</p>
+          </div>
+          <div class="foot-col">
+            <h3>Contact</h3>
+            <p><a href="mailto:pedro@vezza.com.br">pedro@vezza.com.br</a></p>
+            <p>Seattle, WA</p>
+          </div>
+        </div>
+        <div class="foot-rule">
+          <span>No analytics vendor. No cookies until you reserve.</span>
+          <span>We count two things: page views and direction picks.</span>
+          <span>
+            Stripe handles the card fields. Its script loads only when you reserve, and it then sets two
+            cookies of its own on this domain: a session id, and an identifier that lasts a year.
+          </span>
+        </div>
+      </div>
+    </footer>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

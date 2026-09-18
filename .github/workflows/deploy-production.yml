@@ -1,0 +1,58 @@
+name: Deploy production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: cloudflare-production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # This job deploys on a push to main, and the Verify workflow runs on the
+      # same event as an independent workflow, so nothing stops a broken merge
+      # from shipping while the two race. The gate lives here instead.
+      - name: Verify types
+        run: npm run typecheck
+      - name: Verify tests
+        run: npm test
+      - name: Verify target account
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: test "$CLOUDFLARE_ACCOUNT_ID" = "f2161e1aa7fc40353948a79e3eec5837"
+      # The migration mutates the database, so prove the bundle builds and the
+      # config parses before it runs: a build failure found afterwards leaves a
+      # migrated database in front of the previous Worker. This proves nothing
+      # about the bindings existing — --dry-run never calls the API, so a wrong
+      # database_id or a missing secret still passes. Only the deploy shows that.
+      - name: Build the Worker without deploying it
+        run: npx wrangler deploy --dry-run --config wrangler.production.jsonc
+      # Before the Worker, never after: a deploy against an unmigrated database
+      # answers every endpoint with a 500. `wrangler d1 migrations apply` is a
+      # no-op when the journal is already current.
+      - name: Apply D1 migrations
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npm run db:migrate:production
+      - name: Deploy production Worker
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npm run deploy:production

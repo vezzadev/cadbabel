@@ -1,0 +1,919 @@
+/* Hallmark · genre: editorial · macrostructure: Split Studio · theme: Grid · enrichment: none · nav: N9 · footer: Ft4 */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  overflow-x: clip;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── rails: the exposed 12-column grid, this theme's only ornament ─── */
+
+.wrap {
+  position: relative;
+  max-width: 1320px;
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.rails {
+  position: absolute;
+  inset-block: 0;
+  inset-inline: var(--gutter);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  pointer-events: none;
+  z-index: 0;
+}
+
+.rails > i {
+  border-right: var(--hair) solid var(--rule);
+}
+
+.rails > i:last-child {
+  border-right: 0;
+}
+
+.rails > i:nth-child(n + 5) {
+  display: none;
+}
+
+@media (min-width: 60rem) {
+  .rails {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .rails > i:nth-child(n + 5) {
+    display: block;
+  }
+}
+
+.band {
+  position: relative;
+  border-bottom: var(--hair) solid var(--rule);
+}
+
+/* Everything except the rails themselves stacks above them. Matching `.rails`
+   here too would beat its own `position: absolute` and collapse it to 0px. */
+.band > .wrap > *:not(.rails) {
+  position: relative;
+  z-index: 1;
+}
+
+/* ─── type ─── */
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: var(--ls-display);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+h1 {
+  font-size: var(--fs-display);
+  line-height: var(--lh-display);
+}
+
+h2 {
+  font-size: var(--fs-head);
+  line-height: var(--lh-head);
+}
+
+h3 {
+  font-size: var(--fs-sub);
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+p {
+  margin: 0;
+  max-width: var(--measure);
+  color: var(--ink-2);
+}
+
+a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: var(--hair) solid var(--rule-strong);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  a:hover {
+    border-bottom-color: var(--ink);
+  }
+}
+
+a:active {
+  color: var(--ink-2);
+  border-bottom-color: var(--ink-2);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  transition: none;
+}
+
+/* the one place the signal floods type */
+::selection {
+  background: var(--signal);
+  color: var(--signal-ink);
+}
+
+.micro {
+  font-size: var(--fs-micro);
+  letter-spacing: var(--ls-micro);
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* ─── N9 nav: edge-aligned, no centring, no pill ─── */
+
+.nav > .wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-5);
+  padding-block: var(--s-4);
+}
+
+.mark {
+  font-size: var(--fs-sub);
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  border-bottom: 0;
+}
+
+.nav-links {
+  display: flex;
+  gap: var(--s-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nav-links a {
+  font-size: var(--fs-micro);
+  letter-spacing: var(--ls-micro);
+  text-transform: uppercase;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1;
+  border-bottom-color: transparent;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .nav-links a:hover {
+    border-bottom-color: var(--ink);
+  }
+}
+
+/* ─── H2 hero: 7/5 diptych, occupied side left ─── */
+
+.diptych {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 60rem) {
+  .diptych {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  }
+
+  .diptych > :last-child {
+    border-left: var(--hair) solid var(--rule-strong);
+    padding-left: var(--gutter);
+  }
+}
+
+.hero-copy {
+  display: grid;
+  gap: var(--s-5);
+  padding-block: var(--s-8) var(--s-9);
+  padding-right: var(--gutter);
+}
+
+.hero-sub {
+  font-size: var(--fs-sub);
+}
+
+.price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-3) var(--s-4);
+  border-top: var(--hair) solid var(--rule);
+  padding-top: var(--s-4);
+}
+
+.price b {
+  font-size: var(--fs-price);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.price span {
+  font-size: var(--fs-spec);
+  color: var(--ink-2);
+}
+
+.hero-spec {
+  padding-block: var(--s-8) var(--s-9);
+}
+
+@media (max-width: 59.99rem) {
+  .hero-spec {
+    padding-block: 0 var(--s-7);
+  }
+}
+
+/* ─── F3 spec sheet: tabular, hairline rows ─── */
+
+.spec {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--s-4);
+  font-size: var(--fs-spec);
+}
+
+.spec caption {
+  text-align: left;
+  padding-bottom: var(--s-3);
+}
+
+.spec th,
+.spec td {
+  border-top: var(--hair) solid var(--rule);
+  padding: var(--s-3) var(--s-4) var(--s-3) 0;
+  text-align: left;
+  vertical-align: baseline;
+  font-weight: 400;
+}
+
+.spec th {
+  color: var(--ink-2);
+  width: 45%;
+}
+
+.spec td {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  padding-right: 0;
+}
+
+.spec tr:last-child th,
+.spec tr:last-child td {
+  border-bottom: var(--hair) solid var(--rule);
+}
+
+.spec tbody tr {
+  transition: background-color var(--dur) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .spec tbody tr:hover {
+    background: var(--paper-2);
+  }
+}
+
+.spec--wide th {
+  width: 34%;
+}
+
+.spec--wide td {
+  color: var(--ink-2);
+  font-weight: 400;
+}
+
+/* ─── section head: label column left, content right, both top-aligned ─── */
+
+.sect {
+  display: grid;
+  gap: var(--s-6);
+  padding-block: var(--s-7);
+}
+
+@media (min-width: 60rem) {
+  .sect {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 9fr);
+    /* no column gap: the tracks then measure an exact 3/12 and 9/12 of the
+       shell, so the dividing rule lands on a rail. The head's padding-right
+       and the body's padding-left carry the air instead. */
+    column-gap: 0;
+    padding-block: var(--s-10);
+  }
+
+  .sect > .sect-body {
+    border-left: var(--hair) solid var(--rule-strong);
+    padding-left: var(--gutter);
+  }
+
+  /* Split Studio: the occupied side steps as the page descends, so no two
+     consecutive ruled sections share a silhouette. Every second band that
+     carries a .sect inverts its tracks — 9fr body left, 3fr head right — and
+     the dividing rule travels to the body's other edge. Both boundaries land
+     on a column track (3 of 12, then 9 of 12), so the rails still read
+     through. Counted over the .sect-bearing bands only, so the plate between
+     them does not break the rhythm. */
+  main > .band:nth-child(even of .band:has(.sect)) .sect {
+    grid-template-columns: minmax(0, 9fr) minmax(0, 3fr);
+  }
+
+  main > .band:nth-child(even of .band:has(.sect)) .sect-head {
+    order: 2;
+    padding-right: 0;
+    padding-left: var(--gutter);
+  }
+
+  main > .band:nth-child(even of .band:has(.sect)) .sect > .sect-body {
+    border-left: 0;
+    border-right: var(--hair) solid var(--rule-strong);
+    padding-left: 0;
+    padding-right: var(--gutter);
+  }
+}
+
+.sect-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding-right: var(--gutter);
+}
+
+.sect-body {
+  display: grid;
+  gap: var(--s-5);
+  align-content: start;
+}
+
+/* ─── doors: two equal cells, nothing pre-selected ─── */
+
+.doors {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  border-top: var(--hair) solid var(--rule-strong);
+}
+
+@media (min-width: 48rem) {
+  .doors {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .doors > :last-child {
+    border-left: var(--hair) solid var(--rule-strong);
+  }
+}
+
+.door {
+  display: grid;
+  gap: var(--s-3);
+  align-content: start;
+  width: 100%;
+  margin: 0;
+  padding: var(--s-6) var(--gutter) var(--s-7) 0;
+  border: 0;
+  border-bottom: var(--hair) solid var(--rule-strong);
+  border-radius: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--dur) var(--ease);
+}
+
+@media (min-width: 48rem) {
+  .doors > :last-child .door {
+    padding-left: var(--gutter);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .door:hover {
+    background: var(--paper-2);
+  }
+}
+
+.door:active {
+  background: var(--paper-3);
+}
+
+.door:disabled {
+  background: var(--paper-2);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+.door:disabled .door-note {
+  color: var(--ink-3);
+}
+
+.door-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2) var(--s-3);
+  font-size: var(--fs-head);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+}
+
+.door-arrow {
+  display: inline-block;
+  transition: transform var(--dur) var(--ease);
+}
+
+.door:focus-visible .door-arrow {
+  transform: translateX(8px);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .door:hover .door-arrow {
+    transform: translateX(8px);
+  }
+}
+
+.door:active .door-arrow {
+  transform: translateX(4px);
+}
+
+.door .door-note {
+  font-size: var(--fs-spec);
+  color: var(--ink-2);
+  max-width: 34ch;
+}
+
+.door[data-chosen="yes"] {
+  background: var(--paper-3);
+}
+
+.door[data-chosen="yes"] .door-label::after {
+  content: "picked";
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  letter-spacing: var(--ls-micro);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  /* its own line, so nowrap display type can never push it off the track */
+  flex-basis: 100%;
+}
+
+/* ─── the plate: one per page, full-bleed, and it carries the caveat ───
+   Flooded full-chroma signal. The theme exempts the plate from the 5%
+   painted-area cap (grid.md:47) and bans wash/tint fills outside
+   paper-2/paper-3 (grid.md:82), so a diluted band would break the theme
+   to satisfy a cap the plate is not under. The disclosure is the one thing
+   on this page that must be impossible to skim past. */
+
+.plate {
+  background: var(--signal);
+  color: var(--signal-ink);
+  border-bottom: var(--hair) solid var(--ink);
+}
+
+.plate > .wrap {
+  padding-block: var(--s-8);
+  display: grid;
+  gap: var(--s-4);
+}
+
+@media (min-width: 60rem) {
+  .plate > .wrap {
+    padding-block: var(--s-9);
+  }
+}
+
+.plate-label {
+  font-size: var(--fs-micro);
+  letter-spacing: var(--ls-micro);
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--signal-ink);
+}
+
+/* the bar from the kit: a 3px ink rule over the head, cut to two tracks */
+.plate-label::before {
+  content: "";
+  display: block;
+  width: calc(100% / 6);
+  min-width: 5rem;
+  height: 3px;
+  margin-bottom: var(--s-3);
+  background: var(--signal-ink);
+}
+
+/* same size as the price — this is the load-bearing rule of the page */
+.plate-text {
+  font-size: var(--fs-price);
+  line-height: 1.32;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  color: var(--signal-ink);
+  max-width: 46ch;
+}
+
+/* the rails cross the plate so the grid is never interrupted. grid.md:51
+   specifies paper at 12-18% alpha on a flooded plate, not ink. */
+.plate .rails > i {
+  border-right-color: color-mix(in oklab, var(--paper) 15%, transparent);
+}
+
+/* ─── cells: scope, out of scope ─── */
+
+.cells {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  border-top: var(--hair) solid var(--rule);
+}
+
+@media (min-width: 48rem) {
+  .cells {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 60rem) {
+  .cells--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.cell {
+  display: grid;
+  gap: var(--s-2);
+  align-content: start;
+  padding: var(--s-5) var(--gutter) var(--s-6) 0;
+  border-bottom: var(--hair) solid var(--rule);
+}
+
+@media (min-width: 48rem) {
+  .cell:nth-child(2n) {
+    border-left: var(--hair) solid var(--rule);
+    padding-left: var(--gutter);
+  }
+}
+
+@media (min-width: 60rem) {
+  .cells--3 .cell:nth-child(2n) {
+    border-left: 0;
+    padding-left: 0;
+  }
+
+  .cells--3 .cell:not(:nth-child(3n + 1)) {
+    border-left: var(--hair) solid var(--rule);
+    padding-left: var(--gutter);
+  }
+}
+
+.cell p {
+  font-size: var(--fs-spec);
+}
+
+/* ─── F4 steps: genuinely ordinal ─── */
+
+.steps {
+  display: grid;
+  gap: 0;
+  border-top: var(--hair) solid var(--rule);
+  counter-reset: step;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  gap: var(--s-4);
+  padding-block: var(--s-4);
+  border-bottom: var(--hair) solid var(--rule);
+  transition: background-color var(--dur) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .step:hover {
+    background: var(--paper-2);
+  }
+}
+
+.step-n {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--ink-3);
+}
+
+.step p {
+  font-size: var(--fs-spec);
+}
+
+/* ─── C2 reservation form ─── */
+
+.form {
+  display: grid;
+  gap: var(--s-5);
+  border-top: var(--hair) solid var(--rule-strong);
+  padding-top: var(--s-6);
+  max-width: 44rem;
+}
+
+.field {
+  display: grid;
+  gap: var(--s-2);
+}
+
+.field > label,
+.fieldset > legend {
+  font-size: var(--fs-micro);
+  letter-spacing: var(--ls-micro);
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ink-2);
+  padding: 0;
+}
+
+input[type="email"],
+input[type="date"],
+select {
+  width: 100%;
+  padding: var(--s-3) var(--s-4);
+  border: var(--hair) solid var(--rule-strong);
+  border-radius: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-spec);
+  min-height: var(--control-h);
+  line-height: 1.2;
+  transition: border-color var(--dur) var(--ease), background-color var(--dur) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  input[type="email"]:hover,
+  input[type="date"]:hover,
+  select:hover {
+    border-color: var(--ink-3);
+  }
+}
+
+input[type="email"]:disabled,
+input[type="date"]:disabled,
+select:disabled {
+  background: var(--paper-3);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+input[aria-invalid="true"],
+select[aria-invalid="true"] {
+  border-color: var(--state-error);
+}
+
+.helper {
+  min-height: 1lh;
+  font-size: var(--fs-micro);
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+.helper[data-state="error"] {
+  color: var(--state-error);
+}
+
+.helper[data-state="ok"] {
+  color: var(--state-ok);
+}
+
+.fieldset {
+  display: grid;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.radios {
+  display: grid;
+  gap: 0;
+  border-top: var(--hair) solid var(--rule);
+}
+
+.radio {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding-block: var(--s-3);
+  border-bottom: var(--hair) solid var(--rule);
+  font-size: var(--fs-spec);
+  cursor: pointer;
+}
+
+.radio input,
+.ack input {
+  accent-color: var(--ink);
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0;
+  flex: none;
+}
+
+.ack {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-4) 0;
+  border-top: var(--hair) solid var(--rule);
+  border-bottom: var(--hair) solid var(--rule);
+  font-size: var(--fs-spec);
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .radio:hover,
+  .ack:hover {
+    background: var(--paper-2);
+  }
+}
+
+.radio:active,
+.ack:active {
+  background: var(--paper-3);
+}
+
+.btn {
+  justify-self: start;
+  padding: var(--s-3) var(--s-6);
+  border: var(--hair) solid var(--ink);
+  border-radius: 0;
+  background: var(--ink);
+  color: var(--paper);
+  font: inherit;
+  font-size: var(--fs-spec);
+  min-height: var(--control-h);
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover {
+    background: var(--paper);
+    color: var(--ink);
+  }
+}
+
+.btn:active {
+  background: var(--paper-3);
+  color: var(--ink);
+}
+
+.btn:disabled {
+  border-color: var(--rule-strong);
+  background: var(--paper-3);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+.btn[data-state="loading"] {
+  border-color: var(--rule-strong);
+  background: var(--paper-2);
+  color: var(--ink-2);
+  cursor: progress;
+}
+
+.btn[data-state="error"] {
+  border-color: var(--state-error);
+  background: var(--paper);
+  color: var(--state-error);
+}
+
+.btn[data-state="ok"] {
+  border-color: var(--state-ok);
+  background: var(--paper);
+  color: var(--state-ok);
+}
+
+.card-step {
+  display: grid;
+  gap: var(--s-4);
+  border-top: var(--hair) solid var(--rule-strong);
+  padding-top: var(--s-5);
+}
+
+.card-step[hidden] {
+  display: none;
+}
+
+.card-mount {
+  min-height: 1lh;
+  padding: var(--s-4);
+  border: var(--hair) solid var(--rule-strong);
+  background: var(--paper);
+}
+
+.result {
+  font-size: var(--fs-spec);
+  min-height: 1lh;
+}
+
+.result[data-state="error"] {
+  color: var(--state-error);
+}
+
+.result[data-state="ok"] {
+  color: var(--state-ok);
+}
+
+/* ─── Ft4 colophon ─── */
+
+.foot {
+  border-bottom: 0;
+}
+
+.foot > .wrap {
+  padding-block: var(--s-7) var(--s-8);
+  display: grid;
+  gap: var(--s-6);
+}
+
+@media (min-width: 48rem) {
+  .foot-cols {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--gutter);
+  }
+}
+
+.foot-col {
+  display: grid;
+  gap: var(--s-2);
+  align-content: start;
+  font-size: var(--fs-spec);
+  color: var(--ink-2);
+}
+
+.foot-col h3 {
+  font-size: var(--fs-micro);
+  letter-spacing: var(--ls-micro);
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-3);
+  margin-bottom: var(--s-2);
+}
+
+.foot-rule {
+  border-top: var(--hair) solid var(--rule);
+  padding-top: var(--s-4);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-5);
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+}
+
+.skip {
+  position: absolute;
+  left: -9999px;
+}
+
+.skip:focus {
+  position: static;
+  display: inline-block;
+  margin: var(--s-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,85 @@
+/* Hallmark · genre: editorial · macrostructure: Split Studio · theme: Grid · enrichment: none · nav: N9 · footer: Ft4 */
+
+@font-face {
+  font-family: "Archivo";
+  src: url("/fonts/archivo-latin-var.woff2") format("woff2-variations");
+  font-weight: 400 800;
+  font-style: normal;
+  font-display: swap;
+  /* U+2192 is the door arrow, and the subset was rebuilt from upstream Archivo
+     to carry it: undeclared, the biggest glyph on the page rendered in a
+     fallback face. U+21C4 stays out — it appears only in <title>, which the
+     browser draws in its own chrome font, and upstream Archivo has no glyph. */
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191-2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  /* surfaces — light cool paper */
+  --paper: oklch(99% 0.005 255);
+  --paper-2: oklch(96.4% 0.005 255);
+  --paper-3: oklch(93.4% 0.006 255);
+
+  /* rules — the grid is the ornament */
+  --rule: oklch(88% 0.008 255);
+  /* boundary of every control: 3.52:1 on --paper, clears 1.4.11's 3:1 */
+  --rule-strong: oklch(62% 0.014 255);
+
+  /* ink */
+  --ink: oklch(16% 0.01 255);
+  --ink-2: oklch(43% 0.011 255);
+  /* 5.36:1 on --paper, 4.97:1 on --paper-2, 4.53:1 on --paper-3 — AA at 13px */
+  --ink-3: oklch(52% 0.011 255);
+
+  /* one signal ink: industrial yellow. surface only, never type.
+     the plate floods it — the theme exempts the plate from the painted-area
+     cap and bans tint fills, so there is no diluted variant of this.
+     --signal-ink is the verified ink for type on it: 11.09:1. */
+  --signal: oklch(82% 0.17 95);
+  --signal-ink: oklch(16% 0.01 255);
+
+  --state-error: oklch(48% 0.16 25);
+  --state-ok: oklch(45% 0.12 150);
+
+  --font: "Archivo", "Helvetica Neue", Arial, sans-serif;
+
+  /* type — one family, weight and size carry hierarchy */
+  --fs-display: clamp(2rem, 4.6vw, 3.25rem);
+  --fs-head: clamp(1.25rem, 2.2vw, 1.625rem);
+  --fs-price: clamp(1.25rem, 2.6vw, 1.75rem);
+  --fs-sub: 1.0625rem;
+  --fs-body: clamp(1rem, 1.05vw, 1.0625rem);
+  --fs-spec: 0.9375rem;
+  --fs-micro: 0.8125rem;
+
+  --lh-display: 0.94;
+  --lh-head: 1.08;
+  --lh-body: 1.55;
+
+  --ls-display: -0.035em;
+  --ls-micro: 0.06em;
+
+  /* space — 4px base, band rhythm */
+  --s-1: 0.25rem;
+  --s-2: 0.5rem;
+  --s-3: 0.75rem;
+  --s-4: 1rem;
+  --s-5: 1.5rem;
+  --s-6: 2rem;
+  --s-7: 3rem;
+  --s-8: 4rem;
+  --s-9: 6rem;
+  --s-10: 8rem;
+
+  --gutter: clamp(1rem, 3.2vw, 2.5rem);
+  --measure: 62ch;
+  --hair: 1px;
+
+  /* one shared floor so every control and the button beside it line up */
+  --control-h: 3rem;
+
+  --dur-fast: 0.12s;
+  --dur: 0.18s;
+  --ease: cubic-bezier(0.2, 0, 0.2, 1);
+}

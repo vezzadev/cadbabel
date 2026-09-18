@@ -79,6 +79,49 @@ body {
   z-index: 1;
 }
 
+/* ─── type carries its own ground ─────────────────────────────────────────
+   The rails are the theme (grid.md:55, :77) and they stay, but at the shell
+   width four of the twelve cross the measure of every prose column, so a
+   hairline lands inside glyph stems — ornament turning into a reading defect.
+   Whatever holds type paints the ground under it, so the grid reads in the
+   gutters, the empty tracks, the space between blocks and across the plate,
+   and never through a word. `--ground` is inherited, so every surface that
+   paints a background restates it and nested type follows the surface it is
+   actually on — the plate's type grounds in signal, a hovered door in
+   paper-2.
+
+   Running prose grounds per block, so the rails still read between the
+   paragraphs of a column. */
+h1,
+h2,
+h3,
+p,
+caption,
+a {
+  background-color: var(--ground);
+}
+
+/* A thing that reads as one object grounds once, not one stripe per line: a
+   scope cell, a step, a table row, the whole reservation form, a footer
+   column, the colophon row. Striping those is what makes the rails look like
+   damage instead of a grid. The doors do the same in their own rule, where
+   the button's UA background is reset anyway. */
+.cell,
+.step,
+.form,
+.spec tbody tr,
+.foot-col,
+.foot-rule {
+  background-color: var(--ground);
+}
+
+/* A step tints on hover and its paragraph paints the ground, so the two have
+   to fade on the same clock or the ground flashes under the words. Doors and
+   spec rows ground as whole objects and already carry that transition. */
+.step p {
+  transition: background-color var(--dur) var(--ease);
+}
+
 /* ─── type ─── */
 
 h1,
@@ -302,6 +345,7 @@ a:active {
 @media (hover: hover) and (pointer: fine) {
   .spec tbody tr:hover {
     background: var(--paper-2);
+    --ground: var(--paper-2);
   }
 }
 
@@ -403,7 +447,7 @@ a:active {
   border: 0;
   border-bottom: var(--hair) solid var(--rule-strong);
   border-radius: 0;
-  background: transparent;
+  background: var(--ground);
   font: inherit;
   color: var(--ink);
   text-align: left;
@@ -420,15 +464,18 @@ a:active {
 @media (hover: hover) and (pointer: fine) {
   .door:hover {
     background: var(--paper-2);
+    --ground: var(--paper-2);
   }
 }
 
 .door:active {
   background: var(--paper-3);
+  --ground: var(--paper-3);
 }
 
 .door:disabled {
   background: var(--paper-2);
+  --ground: var(--paper-2);
   color: var(--ink-3);
   cursor: not-allowed;
 }
@@ -475,6 +522,7 @@ a:active {
 
 .door[data-chosen="yes"] {
   background: var(--paper-3);
+  --ground: var(--paper-3);
 }
 
 .door[data-chosen="yes"] .door-label::after {
@@ -497,6 +545,7 @@ a:active {
 
 .plate {
   background: var(--signal);
+  --ground: var(--signal);
   color: var(--signal-ink);
   border-bottom: var(--hair) solid var(--ink);
 }
@@ -620,6 +669,7 @@ a:active {
 @media (hover: hover) and (pointer: fine) {
   .step:hover {
     background: var(--paper-2);
+    --ground: var(--paper-2);
   }
 }
 
@@ -760,12 +810,14 @@ select[aria-invalid="true"] {
   .radio:hover,
   .ack:hover {
     background: var(--paper-2);
+    --ground: var(--paper-2);
   }
 }
 
 .radio:active,
 .ack:active {
   background: var(--paper-3);
+  --ground: var(--paper-3);
 }
 
 .btn {

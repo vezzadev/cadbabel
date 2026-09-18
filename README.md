@@ -40,15 +40,17 @@ bounds both aggregates inclusively on `created_at`; a malformed bound is a
 
 `/api/event`, `/api/reserve`, and `/api/reserve/confirm` are rate limited per
 client IP — 20 events and 3 reservation calls a minute — and answer `429` with
-`{ error }` and a `retry-after` header above that. Any request body whose
-`content-length` exceeds 4096 is refused with `413` unread; every legitimate
-body on this API is under 400 bytes. There is no CAPTCHA and no Turnstile: the
+`{ error }` and a `retry-after` header above that. A body whose `content-length` exceeds
+4096 on those three paths is refused with `413` unread; every legitimate body
+there is under 400 bytes. `/api/stripe/webhook` is exempt from that parser
+because signature verification needs the complete raw body, and carries its
+own 65536-byte cap. There is no CAPTCHA and no Turnstile: the
 page states that it sets no cookies before a reservation, and Turnstile would
 make that false.
 
 ## Local development
 
-Use Node.js 22 or newer.
+Use Node.js 24 or newer.
 
 ```sh
 npm ci

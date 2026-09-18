@@ -17,7 +17,7 @@
         "type": "grotesk-bold-sentence-case",
         "color": "chromatic-yellow"
       },
-      "typeface": "Archivo 400-800 variable, self-hosted latin subset",
+      "typeface": "Archivo 400-800 variable, self-hosted latin subset rebuilt from upstream to carry U+2192 (the door arrow was falling back)",
       "signal_ink": "oklch(82% 0.17 95)",
       "plate": "disclosure band, full-bleed signal fill, signal-ink type at --fs-price, kit bar in ink over the label, rails crossing at 22% ink",
       "motion": ["row hover background", "glyph-arrow 8px translate"],

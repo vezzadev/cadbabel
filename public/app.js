@@ -86,6 +86,14 @@ recordEvent("page_view", null);
 
 for (const door of document.querySelectorAll(".door")) {
   door.addEventListener("click", () => {
+    // Once the row is filed, the direction on it is the one we will translate.
+    // A door that still repainted the form would show the visitor a choice we
+    // are not honouring, and would count a second door_select for one visit.
+    if (reservation.id) {
+      say(directionHelp, "ok", "Your slot is filed for the direction above. Email us to change it.");
+      return;
+    }
+
     const direction = door.dataset.direction;
 
     for (const other of document.querySelectorAll(".door")) {
@@ -166,13 +174,19 @@ function blockOnDisclosure() {
   link.focus({ preventScroll: true });
 }
 
-function lockForm() {
+// Three states, and the difference matters. Once /api/reserve answers, the row
+// is filed and the fields describe history: they are frozen for the rest of the
+// visit, whatever happens to Stripe. Only the button moves after that.
+function freezeFields() {
   for (const field of form.querySelectorAll("input, select")) field.disabled = true;
+}
+
+function lockForm() {
+  freezeFields();
   submit.hidden = true;
 }
 
-function unlockForm(label) {
-  for (const field of form.querySelectorAll("input, select")) field.disabled = false;
+function offerRetry(label) {
   submit.hidden = false;
   busy(submit, false, label);
 }
@@ -188,6 +202,42 @@ async function loadStripe() {
   });
 }
 
+// Stripe's appearance API takes HEX, rgb() or hsl() and rejects anything else,
+// including the oklch() our tokens are written in — silently, with a console
+// warning, leaving the iframe in Stripe's own grey. Reading `fillStyle` back is
+// not the conversion: Chrome serialises an oklch() assignment as oklch(). So
+// the colour is rasterised and the pixel read, which is sRGB by definition.
+// Two sentinels guard the parse: a value the browser cannot read leaves them in
+// place, they disagree, and null is returned instead of a near-black sentinel.
+function srgbOf(value) {
+  const context = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+  if (!context) return null;
+
+  context.fillStyle = "#010203";
+  context.fillStyle = value;
+  const parsed = context.fillStyle;
+  context.fillStyle = "#040506";
+  context.fillStyle = value;
+  if (parsed !== context.fillStyle) return null;
+
+  context.fillRect(0, 0, 1, 1);
+  const [red, green, blue, alpha] = context.getImageData(0, 0, 1, 1).data;
+
+  return alpha === 0 ? null : `rgb(${red}, ${green}, ${blue})`;
+}
+
+/** Only the keys Stripe could parse, so a failure loses one variable, not all. */
+function appearanceVariables(shell) {
+  const variables = { fontFamily: shell.fontFamily, borderRadius: "0px", spacingUnit: "4px" };
+  const background = srgbOf(shell.backgroundColor);
+  const text = srgbOf(shell.color);
+
+  if (background) variables.colorBackground = background;
+  if (text) variables.colorText = text;
+
+  return variables;
+}
+
 async function mountCard() {
   await loadStripe();
 
@@ -198,16 +248,7 @@ async function mountCard() {
   const shell = getComputedStyle(document.body);
   const elements = stripe.elements({
     clientSecret: reservation.clientSecret,
-    appearance: {
-      theme: "flat",
-      variables: {
-        colorBackground: shell.backgroundColor,
-        colorText: shell.color,
-        fontFamily: shell.fontFamily,
-        borderRadius: "0px",
-        spacingUnit: "4px",
-      },
-    },
+    appearance: { theme: "flat", variables: appearanceVariables(shell) },
   });
   const payment = elements.create("payment", { fields: { billingDetails: { email: "never" } } });
   payment.mount(cardMount);
@@ -252,17 +293,19 @@ async function mountCard() {
   };
 }
 
-// The row is written before this runs. So a Stripe failure here must leave the
-// visitor with working controls and the truth: the slot is recorded, the card is
-// not on file, and there are two ways to finish.
+// The row is written before this runs, so the fields are already history and
+// stay frozen. A Stripe failure must still leave a way forward: the button
+// comes back as a retry, and the copy states the slot stands and gives the
+// email fallback.
 async function openCardStep() {
+  freezeFields();
   busy(submit, true, CARD_RETRY_LABEL);
   say(result, "ok", "Slot recorded. One step left: put a card on file. We charge it nothing.");
 
   try {
     await mountCard();
   } catch (failure) {
-    unlockForm(CARD_RETRY_LABEL);
+    offerRetry(CARD_RETRY_LABEL);
     say(
       result,
       "error",
@@ -318,6 +361,22 @@ form.addEventListener("submit", async event => {
   reservation.step = payload.card_step;
   reservation.clientSecret = payload.client_secret;
   reservation.publishableKey = payload.publishable_key;
+
+  // The API answers with the direction of record. It differs from the submitted
+  // one when this email already had a reservation that never parked a card: we
+  // keep the direction it was filed with, and saying nothing would leave the
+  // visitor looking at a radio we are not honouring.
+  if (payload.direction && payload.direction !== readBody().direction) {
+    const filed = form.querySelector(`input[name="direction"][value="${payload.direction}"]`);
+    if (filed) {
+      filed.checked = true;
+      say(
+        directionHelp,
+        "ok",
+        `This email already had a reservation, filed for ${filed.nextElementSibling.textContent.trim()}. We kept that direction — email ${FALLBACK_EMAIL} to change it.`,
+      );
+    }
+  }
 
   if (payload.card_step !== "stripe") {
     lockForm();

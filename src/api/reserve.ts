@@ -30,6 +30,8 @@ const STRIPE_UNAVAILABLE = "payment provider unavailable";
 
 interface ReservationRow {
   id: string;
+  direction: string;
+  purpose: string;
   stripe_customer_id: string | null;
   stripe_setup_intent_id: string | null;
   card_on_file: number;
@@ -46,6 +48,13 @@ type EmailClaim = "inserted" | "recovered";
 interface ClaimedReservation {
   reservationId: string;
   claim: EmailClaim;
+  /**
+   * The values of record for this row — the submitted ones when we inserted it,
+   * the stored ones when we recovered someone's earlier attempt. Everything
+   * downstream reads these, so Stripe's metadata and the response describe the
+   * row that exists rather than a request that lost a race with itself.
+   */
+  fields: ReservationFields;
 }
 
 interface ReservationFields {
@@ -101,12 +110,12 @@ async function claimReservation(env: Env, fields: ReservationFields): Promise<Cl
         new Date().toISOString(),
       )
       .run();
-    return { reservationId, claim: "inserted" };
+    return { reservationId, claim: "inserted", fields };
   } catch (cause) {
     if (!(cause instanceof Error) || !EMAIL_TAKEN_PATTERN.test(cause.message)) throw cause;
 
     const existing = await env.DB.prepare(
-      `SELECT id, stripe_customer_id, stripe_setup_intent_id, card_on_file
+      `SELECT id, direction, purpose, stripe_customer_id, stripe_setup_intent_id, card_on_file
          FROM reservations WHERE email = ?`,
     )
       .bind(fields.email)
@@ -116,7 +125,15 @@ async function claimReservation(env: Env, fields: ReservationFields): Promise<Cl
     if (!existing) throw cause;
     if (existing.stripe_setup_intent_id) throw new ApiError(409, "email already reserved");
     if (existing.card_on_file === 1) throw new ApiError(409, "email already reserved");
-    return { reservationId: existing.id, claim: "recovered" };
+    // The recovered row is not rewritten: this request may carry a different
+    // direction, and nothing here proves it comes from whoever filed the row.
+    // So the stored direction and purpose win, and they are what Stripe's
+    // metadata and the response report.
+    return {
+      reservationId: existing.id,
+      claim: "recovered",
+      fields: { ...fields, direction: existing.direction, purpose: existing.purpose },
+    };
   }
 }
 
@@ -149,23 +166,24 @@ async function rollbackClaim(env: Env, claimed: ClaimedReservation): Promise<voi
  * Creates the Stripe objects for a claimed row and patches their ids in. The
  * idempotency keys are seeded from the row id, so a retry against a recovered
  * row reuses the same keys and Stripe replays the original customer and
- * SetupIntent instead of minting duplicates.
+ * SetupIntent instead of minting duplicates. The metadata comes from
+ * `claimed.fields`, so what Stripe records matches the row, not a request whose
+ * direction the recovery path declined to apply.
  */
 async function attachStripe(
   env: Env,
   secretKey: string,
   claimed: ClaimedReservation,
-  fields: ReservationFields,
 ): Promise<string> {
   let customerId: string;
   let setupIntentId: string;
   let clientSecret: string;
   try {
     const customer = await createCustomer(secretKey, {
-      email: fields.email,
+      email: claimed.fields.email,
       reservationId: claimed.reservationId,
-      direction: fields.direction,
-      purpose: fields.purpose,
+      direction: claimed.fields.direction,
+      purpose: claimed.fields.purpose,
       environment: env.ENVIRONMENT,
     });
     customerId = customer.id;
@@ -262,19 +280,24 @@ export async function handleReserve(request: Request, env: Env): Promise<Respons
         card_step: "unconfigured",
         client_secret: null,
         publishable_key: null,
+        direction: claimed.fields.direction,
       },
       201,
     );
   }
 
-  const clientSecret = await attachStripe(env, secretKey, claimed, fields);
+  const clientSecret = await attachStripe(env, secretKey, claimed);
 
+  // `direction` is echoed because it can differ from the one submitted: a
+  // recovered row keeps the direction it was filed with, and the page says so
+  // rather than showing a choice we are not honouring.
   return jsonResponse(
     {
       reservation_id: claimed.reservationId,
       card_step: "stripe",
       client_secret: clientSecret,
       publishable_key: publishableKey,
+      direction: claimed.fields.direction,
     },
     201,
   );

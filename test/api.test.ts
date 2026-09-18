@@ -534,6 +534,44 @@ describe("POST /api/reserve", () => {
     });
   });
 
+  it("keeps the filed direction when it recovers a row, in Stripe's metadata and in the response", async () => {
+    // The second attempt carries the other direction. Nothing here proves it
+    // comes from whoever filed the row, and the row is what the counters read,
+    // so the stored direction wins and the caller is told which one it is.
+    const unconfigured = await call(
+      jsonRequest("/api/reserve", reservePayload({ direction: "sw-to-fusion" })),
+      apiEnv({ STRIPE_SECRET_KEY: undefined, STRIPE_PUBLISHABLE_KEY: undefined }),
+    );
+    const stranded = await bodyOf(unconfigured);
+    expect(stranded["direction"]).toBe("sw-to-fusion");
+
+    stubStripe(
+      { method: "POST", path: "/v1/customers", body: { id: "cus_kept" } },
+      {
+        method: "POST",
+        path: "/v1/setup_intents",
+        body: setupIntentPayload("seti_kept", "requires_payment_method"),
+      },
+    );
+    const recorder = recordFetches();
+
+    const recovered = await call(
+      jsonRequest("/api/reserve", reservePayload({ direction: "fusion-to-sw", purpose: "hobby" })),
+    );
+    recorder.restore();
+    const body = await bodyOf(recovered);
+
+    expect(recovered.status).toBe(201);
+    expect(body["direction"]).toBe("sw-to-fusion");
+    const customerForm = new URLSearchParams(recorder.bodies[0]);
+    expect(customerForm.get("metadata[direction]")).toBe("sw-to-fusion");
+    expect(customerForm.get("metadata[purpose]")).toBe("client-deliverable");
+    expect(await reservationRow(stranded["reservation_id"] as string)).toMatchObject({
+      direction: "sw-to-fusion",
+      purpose: "client-deliverable",
+    });
+  });
+
   it("refuses to hand out a client_secret it could not store, and recovers on retry", async () => {
     // The first reservation owns seti_shared. The second is handed the same id
     // by Stripe, which the unique index on stripe_setup_intent_id refuses, so
@@ -824,6 +862,54 @@ describe("POST /api/stripe/webhook", () => {
 
     expect(response.status).toBe(200);
     expect(await cardOnFile(reservationId)).toBe(1);
+  });
+
+  // Pads an otherwise valid event so the body crosses a size threshold. Stripe
+  // sends a full object graph; our fixtures are small, so the padding stands in
+  // for the fields we do not read.
+  function paddedEvent(reservationId: string, setupIntentId: string, bytes: number): string {
+    const event = JSON.parse(setupIntentSucceededEvent(reservationId, setupIntentId));
+    event.data.object.description = "x".repeat(bytes);
+    return JSON.stringify(event);
+  }
+
+  it("accepts a signed delivery over the 4096-byte JSON cap, which this path cannot use", async () => {
+    // Signature verification needs the exact bytes, so this route reads text
+    // rather than going through the JSON parser and its cap. Routing it through
+    // that parser would reject real Stripe events, which are several KB.
+    const reservationId = await reserveSuccessfully("seti_large");
+    const raw = paddedEvent(reservationId, "seti_large", 5000);
+
+    expect(raw.length).toBeGreaterThan(4096);
+
+    const response = await postWebhook(raw, await stripeSignatureHeader(raw, nowSeconds()));
+
+    expect(response.status).toBe(200);
+    expect(await cardOnFile(reservationId)).toBe(1);
+  });
+
+  it("refuses a delivery whose declared length is over its own 65536-byte cap", async () => {
+    const reservationId = await reserveSuccessfully("seti_huge");
+    const raw = paddedEvent(reservationId, "seti_huge", 70000);
+    const signature = await stripeSignatureHeader(raw, nowSeconds());
+    // `content-length` is set by hand because the cap is a declared-length
+    // check — the point is to refuse before buffering — and the test's own
+    // `new Request` does not set the header the way a real Stripe POST does.
+    const response = await call(
+      new Request("https://cadbabel.com/api/stripe/webhook", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "content-length": String(raw.length),
+          "stripe-signature": signature,
+        },
+        body: raw,
+      }),
+    );
+
+    expect(response.status).toBe(413);
+    expect(await bodyOf(response)).toEqual({ error: "body: must be at most 65536 bytes" });
+    expect(await cardOnFile(reservationId)).toBe(0);
   });
 
   it("refuses an unsigned delivery", async () => {

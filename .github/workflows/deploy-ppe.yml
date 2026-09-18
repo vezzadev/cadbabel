@@ -31,6 +31,11 @@ jobs:
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: test "$CLOUDFLARE_ACCOUNT_ID" = "4e8ec9b758de0cf1e392f7e2d916e96f"
+      # The migration mutates the database, so prove the bundle builds and every
+      # binding resolves before it runs. A build failure discovered afterwards
+      # leaves a migrated database in front of the previous Worker.
+      - name: Build the Worker without deploying it
+        run: npx wrangler deploy --dry-run --config wrangler.ppe.jsonc
       # Before the Worker, never after: a deploy against an unmigrated database
       # answers every endpoint with a 500.
       - name: Apply D1 migrations

@@ -112,7 +112,8 @@ ignores it, so the bindings are absent under `npm test` and the router's
 
 ## Working commands
 
-Use Node.js 22 or newer.
+Use Node.js 24 or newer: the lockfile is npm 11 format and npm 10 fails `npm ci`
+with `EUSAGE Missing: @cloudflare/workers-types` (`package.json` pins the engine).
 
 ```sh
 npm ci

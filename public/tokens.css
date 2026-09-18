@@ -6,8 +6,12 @@
   font-weight: 400 800;
   font-style: normal;
   font-display: swap;
+  /* U+2192 is the door arrow, and the subset was rebuilt from upstream Archivo
+     to carry it: undeclared, the biggest glyph on the page rendered in a
+     fallback face. U+21C4 stays out — it appears only in <title>, which the
+     browser draws in its own chrome font, and upstream Archivo has no glyph. */
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
-    U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191-2193, U+2212,
     U+2215, U+FEFF, U+FFFD;
 }
 

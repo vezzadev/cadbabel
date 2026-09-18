@@ -17,6 +17,9 @@ import { ApiError, jsonResponse } from "./http";
 /** Stripe's own replay window. A delivery signed outside it is refused. */
 const SIGNATURE_TOLERANCE_SECONDS = 300;
 
+/** Generous next to a real `setup_intent.succeeded`, which is a few KB. */
+const MAX_WEBHOOK_BYTES = 65536;
+
 interface StripeSignature {
   /** Verbatim, because it is part of the signed payload. */
   timestamp: string;
@@ -86,7 +89,15 @@ export async function handleStripeWebhook(
   const header = request.headers.get("stripe-signature");
   if (!header) throw new ApiError(400, "stripe-signature: missing");
 
-  // Raw text, never request.json(): the signature covers the exact bytes sent.
+  // This path cannot use the JSON parser's 4096-byte cap: the signature covers
+  // the exact bytes sent, so the body must be read whole and as text. Stripe's
+  // own events are a few KB, so an unsigned caller still cannot make us buffer
+  // an arbitrary payload before the HMAC runs.
+  const declaredLength = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_WEBHOOK_BYTES) {
+    throw new ApiError(413, `body: must be at most ${MAX_WEBHOOK_BYTES} bytes`);
+  }
+
   const raw = await request.text();
   const { timestamp, signatures } = parseSignatureHeader(header);
   const signedAt = Number(timestamp);

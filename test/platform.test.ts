@@ -1,5 +1,5 @@
 import { createExecutionContext, env, SELF, waitOnExecutionContext } from "cloudflare:test";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import initMigration from "../migrations/0001_init.sql?raw";
 import isoTimestampsMigration from "../migrations/0002_iso_timestamps.sql?raw";
@@ -103,6 +103,14 @@ beforeAll(async () => {
   for (const statement of SCHEMA_STATEMENTS) {
     await env.DB.prepare(statement).run();
   }
+});
+
+// Every test in this file either seeds its own rows or asserts a total, so a
+// row left behind by an earlier test is an assertion changing under a
+// neighbour. `/api/stats` totals in particular are absolute counts.
+beforeEach(async () => {
+  await env.DB.prepare("DELETE FROM events").run();
+  await env.DB.prepare("DELETE FROM reservations").run();
 });
 
 describe("src/index.ts entrypoint", () => {

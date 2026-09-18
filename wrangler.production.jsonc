@@ -22,11 +22,28 @@
       "migrations_dir": "migrations"
     }
   ],
+  // Per-IP limits on the endpoints that write. The platform binding's period
+  // is restricted to 10 or 60 seconds, so the reservation limit is expressed
+  // as 3/60s: enough for a visitor who retries, expensive for a for-loop that
+  // wants to inflate the one number this door exists to measure.
+  "ratelimits": [
+    {
+      "name": "EVENT_RATE_LIMIT",
+      "namespace_id": "1001",
+      "simple": { "limit": 20, "period": 60 }
+    },
+    {
+      "name": "RESERVE_RATE_LIMIT",
+      "namespace_id": "1002",
+      "simple": { "limit": 3, "period": 60 }
+    }
+  ],
   // Stripe test-mode keys, deliberately. The pilot is not operating, so no
   // real card is ever charged; test mode makes that visible — the Payment
   // Element renders its own test-mode badge and only test card numbers are
   // accepted. Swap both keys together when the bureau starts operating.
   "vars": {
+    "ENVIRONMENT": "production",
     "STRIPE_PUBLISHABLE_KEY": "pk_test_51RpKv72f4eo2qBMGZ7P7gDlvO0uJSDKYv7aoe7dr6Y761ehxC7hwOYvzT73fxSTaAd1tlgi4iwDf1mxTOvhGq2fL00brabpsC2"
   },
   "routes": [
